@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/config/site";
 import { MobileNav } from "@/components/header/MobileNav";
+import { CartIndicator } from "@/components/cart/CartIndicator";
 import {
   AccountIcon,
-  CartIcon,
   SearchIcon,
   WishlistIcon,
 } from "@/components/ui/icons";
@@ -56,13 +56,7 @@ export function Header() {
           >
             <WishlistIcon className="h-5 w-5" />
           </Link>
-          <Link
-            href="/cart"
-            aria-label="Your cart"
-            className="transition-colors hover:text-terracotta"
-          >
-            <CartIcon className="h-5 w-5" />
-          </Link>
+          <CartIndicator />
 
           <MobileNav links={siteConfig.headerNav} />
         </div>

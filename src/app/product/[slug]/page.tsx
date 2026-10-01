@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { Container } from "@/components/ui/Container";
-import { Button } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductImagePlaceholder } from "@/components/product/ProductImagePlaceholder";
 import { ProductGrid } from "@/components/product/ProductGrid";
+import { AddToCartForm } from "@/components/cart/AddToCartForm";
 import { formatPrice } from "@/lib/utils/currency";
 import { getProductBySlug, products } from "@/data/products";
 
@@ -104,14 +104,7 @@ export default async function ProductPage({ params }: PageProps) {
 
           <div className="mt-8">
             {product.inStock ? (
-              <Button
-                type="button"
-                disabled
-                title="Cart isn't wired up yet — coming in a later phase"
-                className="cursor-not-allowed opacity-60"
-              >
-                Add to Cart
-              </Button>
+              <AddToCartForm product={product} />
             ) : (
               <p className="text-sm text-earth-brown/60">
                 Currently out of stock.
