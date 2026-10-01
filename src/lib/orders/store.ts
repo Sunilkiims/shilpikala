@@ -44,3 +44,8 @@ export async function getOrderByRazorpayOrderId(
   const orders = await readAllOrders();
   return orders.find((order) => order.razorpayOrderId === razorpayOrderId);
 }
+
+export async function getAllOrders(): Promise<StoredOrder[]> {
+  const orders = await readAllOrders();
+  return orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
