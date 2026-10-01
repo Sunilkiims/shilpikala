@@ -5,14 +5,28 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductGrid } from "@/components/product/ProductGrid";
-import { categories, getCategoryBySlug } from "@/data/categories";
-import { getProductsByCategorySlug } from "@/data/products";
+import { isWooCommerceConfigured } from "@/lib/woocommerce/config";
+import { categories as staticCategories } from "@/data/categories";
+import {
+  getAllCategories,
+  getCategoryBySlug,
+  getProductsByCategorySlug,
+} from "@/lib/catalog";
+
+export const revalidate = 300;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
 export async function generateStaticParams() {
+  // Pre-render the known static categories at build time. If WooCommerce
+  // is connected, newly added categories still resolve on first request
+  // and are then cached per `revalidate` above.
+  if (!isWooCommerceConfigured()) {
+    return staticCategories.map((category) => ({ slug: category.slug }));
+  }
+  const categories = await getAllCategories();
   return categories.map((category) => ({ slug: category.slug }));
 }
 
@@ -20,7 +34,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
+  const category = await getCategoryBySlug(slug);
 
   return buildMetadata({
     title: category?.name ?? "Category",
@@ -31,13 +45,13 @@ export async function generateMetadata({
 
 export default async function CategoryPage({ params }: PageProps) {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
+  const category = await getCategoryBySlug(slug);
 
   if (!category) {
     notFound();
   }
 
-  const categoryProducts = getProductsByCategorySlug(slug);
+  const categoryProducts = await getProductsByCategorySlug(slug);
 
   return (
     <Container className="py-12 sm:py-16">

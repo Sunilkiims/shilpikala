@@ -7,13 +7,25 @@ import { ProductImagePlaceholder } from "@/components/product/ProductImagePlaceh
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { AddToCartForm } from "@/components/cart/AddToCartForm";
 import { formatPrice } from "@/lib/utils/currency";
-import { getProductBySlug, products } from "@/data/products";
+import { isWooCommerceConfigured } from "@/lib/woocommerce/config";
+import { products as staticProducts } from "@/data/products";
+import {
+  getAllProducts,
+  getProductBySlug,
+  getProductsByCategorySlug,
+} from "@/lib/catalog";
+
+export const revalidate = 300;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
 export async function generateStaticParams() {
+  if (!isWooCommerceConfigured()) {
+    return staticProducts.map((product) => ({ slug: product.slug }));
+  }
+  const products = await getAllProducts();
   return products.map((product) => ({ slug: product.slug }));
 }
 
@@ -21,7 +33,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
 
   return buildMetadata({
     title: product?.name ?? "Product",
@@ -32,21 +44,18 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: PageProps) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
 
   if (!product) {
     notFound();
   }
 
   const primaryCategory = product.categories[0];
-  const related = products
-    .filter(
-      (candidate) =>
-        candidate.id !== product.id &&
-        candidate.categories.some((category) =>
-          product.categories.some((c) => c.slug === category.slug)
-        )
-    )
+  const relatedCandidates = primaryCategory
+    ? await getProductsByCategorySlug(primaryCategory.slug)
+    : [];
+  const related = relatedCandidates
+    .filter((candidate) => candidate.id !== product.id)
     .slice(0, 4);
 
   return (
