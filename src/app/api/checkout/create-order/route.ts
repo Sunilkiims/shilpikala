@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getProductById } from "@/lib/catalog";
 import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { getRazorpayClient } from "@/lib/razorpay/client";
+import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
 import type { Address } from "@/types/woocommerce";
 
 type CreateOrderRequestItem = {
@@ -55,39 +55,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_address" }, { status: 400 });
   }
 
-  // Recompute the total from the catalog — the client's cart is never
-  // trusted for pricing, only for which products and quantities to buy.
-  let amountInRupees = 0;
-  for (const requestedItem of body.items) {
-    const quantity = Math.floor(Number(requestedItem.quantity));
-    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 99) {
+  let totals;
+  try {
+    totals = await computeOrderTotals(body.items);
+  } catch (error) {
+    if (error instanceof PricingError) {
       return NextResponse.json(
-        { error: "invalid_quantity", productId: requestedItem.productId },
+        { error: error.code, productId: error.productId },
         { status: 400 }
       );
     }
-
-    const product = await getProductById(Number(requestedItem.productId));
-    if (!product) {
-      return NextResponse.json(
-        { error: "unknown_product", productId: requestedItem.productId },
-        { status: 400 }
-      );
-    }
-    if (!product.inStock) {
-      return NextResponse.json(
-        { error: "out_of_stock", productId: requestedItem.productId },
-        { status: 400 }
-      );
-    }
-
-    const unitPrice = Number(
-      product.onSale && product.salePrice ? product.salePrice : product.price
-    );
-    amountInRupees += unitPrice * quantity;
+    throw error;
   }
 
-  const amountInPaise = Math.round(amountInRupees * 100);
+  const amountInPaise = Math.round(totals.amountInRupees * 100);
 
   try {
     const razorpay = getRazorpayClient();

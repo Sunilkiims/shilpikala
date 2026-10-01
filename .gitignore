@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# order data (Day 6 file-based store) — never commit real customer orders
+/storage/

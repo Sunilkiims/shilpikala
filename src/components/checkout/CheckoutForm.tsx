@@ -111,6 +111,11 @@ export function CheckoutForm() {
                 razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
+                items: items.map((item) => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                })),
+                address,
               }),
             });
             const verifyBody = await verifyRes.json();
