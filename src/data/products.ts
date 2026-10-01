@@ -234,6 +234,10 @@ export function getProductBySlug(slug: string): Product | undefined {
   return products.find((product) => product.slug === slug);
 }
 
+export function getProductById(id: number): Product | undefined {
+  return products.find((product) => product.id === id);
+}
+
 export function getProductsByCategorySlug(categorySlug: string): Product[] {
   return products.filter((product) =>
     product.categories.some((category) => category.slug === categorySlug)

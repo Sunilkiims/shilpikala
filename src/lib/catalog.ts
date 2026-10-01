@@ -5,6 +5,7 @@ import {
   fetchCategoryBySlug,
 } from "@/lib/woocommerce/categories";
 import {
+  fetchProductById,
   fetchProductBySlug,
   fetchProducts,
   fetchProductsByCategorySlug,
@@ -14,6 +15,7 @@ import {
   getCategoryBySlug as getStaticCategoryBySlug,
 } from "@/data/categories";
 import {
+  getProductById as getStaticProductById,
   getProductBySlug as getStaticProductBySlug,
   getProductsByCategorySlug as getStaticProductsByCategorySlug,
   products as staticProducts,
@@ -93,5 +95,16 @@ export async function getProductsByCategorySlug(
       error
     );
     return getStaticProductsByCategorySlug(categorySlug);
+  }
+}
+
+export async function getProductById(id: number): Promise<Product | undefined> {
+  if (!isWooCommerceConfigured()) return getStaticProductById(id);
+
+  try {
+    return await fetchProductById(id);
+  } catch (error) {
+    console.error(`[catalog] Falling back to static product id ${id}:`, error);
+    return getStaticProductById(id);
   }
 }

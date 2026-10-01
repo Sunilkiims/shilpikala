@@ -15,6 +15,11 @@ export async function fetchProductBySlug(
   return raw[0] ? mapWooProduct(raw[0]) : undefined;
 }
 
+export async function fetchProductById(id: number): Promise<Product | undefined> {
+  const raw = await wooFetch<WooRawProduct>(`products/${id}`);
+  return raw ? mapWooProduct(raw) : undefined;
+}
+
 export async function fetchProductsByCategorySlug(
   categoryId: number
 ): Promise<Product[]> {
