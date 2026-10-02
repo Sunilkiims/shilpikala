@@ -5,14 +5,14 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductGrid } from "@/components/product/ProductGrid";
-import { isWooCommerceConfigured } from "@/lib/woocommerce/config";
-import { categories as staticCategories } from "@/data/categories";
 import {
   getAllCategories,
   getCategoryBySlug,
   getProductsByCategorySlug,
 } from "@/lib/catalog";
 
+// Re-read on each request after the first 5 minutes, so categories
+// added or edited in the admin area show up without a redeploy.
 export const revalidate = 300;
 
 type PageProps = {
@@ -20,12 +20,6 @@ type PageProps = {
 };
 
 export async function generateStaticParams() {
-  // Pre-render the known static categories at build time. If WooCommerce
-  // is connected, newly added categories still resolve on first request
-  // and are then cached per `revalidate` above.
-  if (!isWooCommerceConfigured()) {
-    return staticCategories.map((category) => ({ slug: category.slug }));
-  }
   const categories = await getAllCategories();
   return categories.map((category) => ({ slug: category.slug }));
 }

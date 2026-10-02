@@ -1,9 +1,9 @@
-import type { Category } from "@/types/woocommerce";
+import type { Category } from "@/types/catalog";
 
 /**
- * Static category list for Day 2 browsing, typed against the future
- * WooCommerce `Category` shape (see src/types/woocommerce.ts) so this
- * file can be swapped for a live fetch later without touching consumers.
+ * Seed category list, used once to populate storage/catalog.json the
+ * first time the site runs (see src/lib/store/catalogStore.ts). After
+ * that, /admin/categories is the real source of truth.
  */
 export const categories: Category[] = [
   {

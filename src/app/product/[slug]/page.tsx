@@ -7,14 +7,14 @@ import { ProductImagePlaceholder } from "@/components/product/ProductImagePlaceh
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { AddToCartForm } from "@/components/cart/AddToCartForm";
 import { formatPrice } from "@/lib/utils/currency";
-import { isWooCommerceConfigured } from "@/lib/woocommerce/config";
-import { products as staticProducts } from "@/data/products";
 import {
   getAllProducts,
   getProductBySlug,
   getProductsByCategorySlug,
 } from "@/lib/catalog";
 
+// Re-read on each request after the first 5 minutes, so products added
+// or edited in the admin area show up without a redeploy.
 export const revalidate = 300;
 
 type PageProps = {
@@ -22,9 +22,6 @@ type PageProps = {
 };
 
 export async function generateStaticParams() {
-  if (!isWooCommerceConfigured()) {
-    return staticProducts.map((product) => ({ slug: product.slug }));
-  }
   const products = await getAllProducts();
   return products.map((product) => ({ slug: product.slug }));
 }

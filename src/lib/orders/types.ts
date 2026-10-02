@@ -1,4 +1,4 @@
-import type { Address } from "@/types/woocommerce";
+import type { Address } from "@/types/catalog";
 import type { PricedLineItem } from "@/lib/checkout/pricing";
 
 export type StoredOrder = {

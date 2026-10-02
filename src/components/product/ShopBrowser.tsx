@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Product, Category } from "@/types/woocommerce";
+import type { Product, Category } from "@/types/catalog";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { cn } from "@/lib/utils/cn";
 

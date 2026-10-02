@@ -4,7 +4,7 @@ import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { verifyPaymentSignature } from "@/lib/razorpay/verify";
 import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
 import { appendOrder, getOrderByRazorpayOrderId } from "@/lib/orders/store";
-import type { Address } from "@/types/woocommerce";
+import type { Address } from "@/types/catalog";
 
 type VerifyRequestBody = {
   razorpayOrderId?: string;

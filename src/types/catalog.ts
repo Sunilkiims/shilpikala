@@ -1,8 +1,7 @@
 /**
- * Minimal domain types for the future WooCommerce integration.
- * These describe the shape of data ShilpiKala will consume once the
- * store connects to the WooCommerce REST API. No API calls are made
- * from this file — it exists purely as shared type architecture.
+ * Core domain types for the ShilpiKala catalogue, cart, and orders.
+ * This is our own data model — not tied to any external commerce
+ * platform — backed by the file-based store in src/lib/store/.
  */
 
 export interface ProductImage {

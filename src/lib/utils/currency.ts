@@ -1,6 +1,6 @@
 /**
- * WooCommerce-style price strings arrive as decimal strings (e.g. "4500.00").
- * This renders them as Indian Rupee amounts with no decimal places, since
+ * Catalogue price strings are decimal strings (e.g. "4500.00"). This
+ * renders them as Indian Rupee amounts with no decimal places, since
  * the catalog prices are all whole rupees.
  */
 export function formatPrice(price: string): string {

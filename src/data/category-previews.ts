@@ -5,9 +5,9 @@ export type CategoryPreview = {
 };
 
 /**
- * Static placeholder content for the homepage category preview.
- * Once WooCommerce is connected, this will be replaced by categories
- * fetched from the store (see `src/types/woocommerce.ts`).
+ * Static placeholder content for the homepage category preview —
+ * intentionally curated copy, separate from the full category list at
+ * /categories (see `src/data/categories.ts` and `src/lib/catalog.ts`).
  */
 export const categoryPreviews: CategoryPreview[] = [
   {

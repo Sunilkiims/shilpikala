@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { getRazorpayClient } from "@/lib/razorpay/client";
 import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
-import type { Address } from "@/types/woocommerce";
+import type { Address } from "@/types/catalog";
 
 type CreateOrderRequestItem = {
   productId: number;

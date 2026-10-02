@@ -1,4 +1,4 @@
-import type { Product } from "@/types/woocommerce";
+import type { Product } from "@/types/catalog";
 import { ProductCard } from "@/components/product/ProductCard";
 
 type ProductGridProps = {

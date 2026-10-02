@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Product } from "@/types/woocommerce";
+import type { Product } from "@/types/catalog";
 import { useCart } from "@/components/cart/CartProvider";
 import { Button } from "@/components/ui/Button";
 

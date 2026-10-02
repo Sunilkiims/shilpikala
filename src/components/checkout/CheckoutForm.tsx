@@ -6,7 +6,7 @@ import { useCart } from "@/components/cart/CartProvider";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils/currency";
 import { siteConfig } from "@/lib/config/site";
-import type { Address } from "@/types/woocommerce";
+import type { Address } from "@/types/catalog";
 
 type Status = "idle" | "submitting" | "error" | "not_configured";
 

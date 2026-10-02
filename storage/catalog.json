@@ -1,0 +1,428 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "name": "Concentric Bloom Mandala",
+      "slug": "concentric-bloom-mandala",
+      "description": "A hand-drawn mandala built from eight repeating petal rings, finished in fine terracotta ink on cream board. Framed and ready to hang.",
+      "shortDescription": "Hand-drawn mandala in fine terracotta ink.",
+      "price": "4500.00",
+      "regularPrice": "4500.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 1,
+          "name": "Mandala Art",
+          "slug": "mandala-art",
+          "description": "Symmetry and circular geometry, drawn one fine line at a time."
+        },
+        {
+          "id": 4,
+          "name": "Wall Art",
+          "slug": "wall-art",
+          "description": "Statement pieces sized and framed for a specific wall."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.8
+    },
+    {
+      "id": 2,
+      "name": "Dotwork Lotus Mandala",
+      "slug": "dotwork-lotus-mandala",
+      "description": "A stippled lotus mandala built point by point, in deep olive and muted gold. A quieter, more textural take on the form.",
+      "shortDescription": "Stippled lotus mandala in olive and gold.",
+      "price": "3800.00",
+      "regularPrice": "4200.00",
+      "salePrice": "3800.00",
+      "onSale": true,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 1,
+          "name": "Mandala Art",
+          "slug": "mandala-art",
+          "description": "Symmetry and circular geometry, drawn one fine line at a time."
+        },
+        {
+          "id": 5,
+          "name": "Decorative Art",
+          "slug": "decorative-art",
+          "description": "Smaller accent pieces for shelves, consoles and corners."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.6
+    },
+    {
+      "id": 3,
+      "name": "Terracotta Mirror Wall Panel",
+      "slug": "terracotta-mirror-wall-panel",
+      "description": "A relief panel in traditional Lipan style — raised terracotta clay work inlaid with small mirror fragments, cured and sealed by hand.",
+      "shortDescription": "Lipan relief panel with inlaid mirror work.",
+      "price": "6200.00",
+      "regularPrice": "6200.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 2,
+          "name": "Lipan Art",
+          "slug": "lipan-art",
+          "description": "Terracotta relief and mirror work rooted in traditional craft."
+        },
+        {
+          "id": 4,
+          "name": "Wall Art",
+          "slug": "wall-art",
+          "description": "Statement pieces sized and framed for a specific wall."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.9
+    },
+    {
+      "id": 4,
+      "name": "Lipan Peacock Relief",
+      "slug": "lipan-peacock-relief",
+      "description": "A peacock motif in raised clay relief, a recurring figure in Kutch mirror work, finished with hand-set mirror chips along the tail.",
+      "shortDescription": "Peacock motif in raised clay relief.",
+      "price": "5400.00",
+      "regularPrice": "5400.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 2,
+          "name": "Lipan Art",
+          "slug": "lipan-art",
+          "description": "Terracotta relief and mirror work rooted in traditional craft."
+        },
+        {
+          "id": 7,
+          "name": "Art Gifts",
+          "slug": "art-gifts",
+          "description": "Gift-ready pieces for housewarmings, weddings and festivals."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.7
+    },
+    {
+      "id": 5,
+      "name": "Hand-Thrown Terracotta Vase Set",
+      "slug": "hand-thrown-terracotta-vase-set",
+      "description": "A set of three terracotta vases thrown and finished by hand, each slightly different, for console tables and shelves.",
+      "shortDescription": "Three hand-thrown terracotta vases.",
+      "price": "2600.00",
+      "regularPrice": "2600.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 3,
+          "name": "Handmade Art",
+          "slug": "handmade-art",
+          "description": "Original pieces shaped entirely by hand, never mass-produced."
+        },
+        {
+          "id": 5,
+          "name": "Decorative Art",
+          "slug": "decorative-art",
+          "description": "Smaller accent pieces for shelves, consoles and corners."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.5
+    },
+    {
+      "id": 6,
+      "name": "Woven Wall Hanging, Earth Tones",
+      "slug": "woven-wall-hanging-earth-tones",
+      "description": "A handwoven wall hanging in undyed cotton and jute, in a palette of ivory, earth brown and muted gold.",
+      "shortDescription": "Handwoven wall hanging in earth tones.",
+      "price": "3200.00",
+      "regularPrice": "3600.00",
+      "salePrice": "3200.00",
+      "onSale": true,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 3,
+          "name": "Handmade Art",
+          "slug": "handmade-art",
+          "description": "Original pieces shaped entirely by hand, never mass-produced."
+        },
+        {
+          "id": 4,
+          "name": "Wall Art",
+          "slug": "wall-art",
+          "description": "Statement pieces sized and framed for a specific wall."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.4
+    },
+    {
+      "id": 7,
+      "name": "Large Format Mandala Canvas",
+      "slug": "large-format-mandala-canvas",
+      "description": "A statement-sized mandala rendered on stretched canvas, built for a focal wall rather than a shelf.",
+      "shortDescription": "Statement-sized mandala on stretched canvas.",
+      "price": "8900.00",
+      "regularPrice": "8900.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 1,
+          "name": "Mandala Art",
+          "slug": "mandala-art",
+          "description": "Symmetry and circular geometry, drawn one fine line at a time."
+        },
+        {
+          "id": 4,
+          "name": "Wall Art",
+          "slug": "wall-art",
+          "description": "Statement pieces sized and framed for a specific wall."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.9
+    },
+    {
+      "id": 8,
+      "name": "Mirror-Inlay Terracotta Coasters",
+      "slug": "mirror-inlay-terracotta-coasters",
+      "description": "A set of four terracotta coasters with miniature Lipan-style mirror inlay, sealed for everyday use.",
+      "shortDescription": "Set of four Lipan-style mirror coasters.",
+      "price": "1200.00",
+      "regularPrice": "1200.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 2,
+          "name": "Lipan Art",
+          "slug": "lipan-art",
+          "description": "Terracotta relief and mirror work rooted in traditional craft."
+        },
+        {
+          "id": 7,
+          "name": "Art Gifts",
+          "slug": "art-gifts",
+          "description": "Gift-ready pieces for housewarmings, weddings and festivals."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.3
+    },
+    {
+      "id": 9,
+      "name": "Olive & Gold Mandala Clock",
+      "slug": "olive-gold-mandala-clock",
+      "description": "A working wall clock built around a hand-painted mandala face, in olive, gold and charcoal.",
+      "shortDescription": "Wall clock with a hand-painted mandala face.",
+      "price": "2950.00",
+      "regularPrice": "2950.00",
+      "onSale": false,
+      "inStock": false,
+      "categories": [
+        {
+          "id": 1,
+          "name": "Mandala Art",
+          "slug": "mandala-art",
+          "description": "Symmetry and circular geometry, drawn one fine line at a time."
+        },
+        {
+          "id": 5,
+          "name": "Decorative Art",
+          "slug": "decorative-art",
+          "description": "Smaller accent pieces for shelves, consoles and corners."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.6
+    },
+    {
+      "id": 10,
+      "name": "Hand-Carved Wooden Trinket Box",
+      "slug": "hand-carved-wooden-trinket-box",
+      "description": "A small lidded box carved by hand from reclaimed teak, finished with a simple geometric border.",
+      "shortDescription": "Hand-carved teak trinket box.",
+      "price": "1800.00",
+      "regularPrice": "1800.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 3,
+          "name": "Handmade Art",
+          "slug": "handmade-art",
+          "description": "Original pieces shaped entirely by hand, never mass-produced."
+        },
+        {
+          "id": 7,
+          "name": "Art Gifts",
+          "slug": "art-gifts",
+          "description": "Gift-ready pieces for housewarmings, weddings and festivals."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.5
+    },
+    {
+      "id": 11,
+      "name": "Custom Mandala Portrait Commission",
+      "slug": "custom-mandala-portrait-commission",
+      "description": "A made-to-order mandala built around a date, name or motif of your choosing — a popular piece for weddings and anniversaries.",
+      "shortDescription": "Made-to-order mandala built around your story.",
+      "price": "5000.00",
+      "regularPrice": "5000.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 6,
+          "name": "Custom Art",
+          "slug": "custom-art",
+          "description": "Commission a piece made to your space, palette and story."
+        },
+        {
+          "id": 7,
+          "name": "Art Gifts",
+          "slug": "art-gifts",
+          "description": "Gift-ready pieces for housewarmings, weddings and festivals."
+        }
+      ],
+      "images": [],
+      "averageRating": 5
+    },
+    {
+      "id": 12,
+      "name": "Custom Lipan Nameplate",
+      "slug": "custom-lipan-nameplate",
+      "description": "A house nameplate finished in raised Lipan relief with mirror inlay, made to order with your family name or house number.",
+      "shortDescription": "Made-to-order Lipan relief nameplate.",
+      "price": "3400.00",
+      "regularPrice": "3400.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 6,
+          "name": "Custom Art",
+          "slug": "custom-art",
+          "description": "Commission a piece made to your space, palette and story."
+        },
+        {
+          "id": 2,
+          "name": "Lipan Art",
+          "slug": "lipan-art",
+          "description": "Terracotta relief and mirror work rooted in traditional craft."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.8
+    },
+    {
+      "id": 13,
+      "name": "Petite Mandala Gift Cards (Set of 6)",
+      "slug": "petite-mandala-gift-cards",
+      "description": "Six blank cards printed from original mandala line work, with envelopes, for gifting alongside a piece or on their own.",
+      "shortDescription": "Six blank cards printed from original line work.",
+      "price": "650.00",
+      "regularPrice": "650.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 7,
+          "name": "Art Gifts",
+          "slug": "art-gifts",
+          "description": "Gift-ready pieces for housewarmings, weddings and festivals."
+        },
+        {
+          "id": 1,
+          "name": "Mandala Art",
+          "slug": "mandala-art",
+          "description": "Symmetry and circular geometry, drawn one fine line at a time."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.2
+    },
+    {
+      "id": 14,
+      "name": "Terracotta Tea-Light Holders (Set of 3)",
+      "slug": "terracotta-tea-light-holders",
+      "description": "Three small tea-light holders in raised terracotta relief, each with a different perforated pattern for the light to pass through.",
+      "shortDescription": "Three perforated terracotta tea-light holders.",
+      "price": "1450.00",
+      "regularPrice": "1450.00",
+      "onSale": false,
+      "inStock": true,
+      "categories": [
+        {
+          "id": 2,
+          "name": "Lipan Art",
+          "slug": "lipan-art",
+          "description": "Terracotta relief and mirror work rooted in traditional craft."
+        },
+        {
+          "id": 5,
+          "name": "Decorative Art",
+          "slug": "decorative-art",
+          "description": "Smaller accent pieces for shelves, consoles and corners."
+        }
+      ],
+      "images": [],
+      "averageRating": 4.4
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Mandala Art",
+      "slug": "mandala-art",
+      "description": "Symmetry and circular geometry, drawn one fine line at a time."
+    },
+    {
+      "id": 2,
+      "name": "Lipan Art",
+      "slug": "lipan-art",
+      "description": "Terracotta relief and mirror work rooted in traditional craft."
+    },
+    {
+      "id": 3,
+      "name": "Handmade Art",
+      "slug": "handmade-art",
+      "description": "Original pieces shaped entirely by hand, never mass-produced."
+    },
+    {
+      "id": 4,
+      "name": "Wall Art",
+      "slug": "wall-art",
+      "description": "Statement pieces sized and framed for a specific wall."
+    },
+    {
+      "id": 5,
+      "name": "Decorative Art",
+      "slug": "decorative-art",
+      "description": "Smaller accent pieces for shelves, consoles and corners."
+    },
+    {
+      "id": 6,
+      "name": "Custom Art",
+      "slug": "custom-art",
+      "description": "Commission a piece made to your space, palette and story."
+    },
+    {
+      "id": 7,
+      "name": "Art Gifts",
+      "slug": "art-gifts",
+      "description": "Gift-ready pieces for housewarmings, weddings and festivals."
+    }
+  ]
+}

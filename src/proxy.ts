@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminConfig, isAdminConfigured } from "@/lib/admin/config";
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
 
 function unauthorized(): NextResponse {
@@ -15,8 +15,8 @@ function unauthorized(): NextResponse {
 /**
  * Fails closed: if ADMIN_USERNAME/ADMIN_PASSWORD aren't set, the admin
  * area is blocked entirely rather than left open. This matches the same
- * "never crash, never silently allow" pattern as the WooCommerce and
- * Razorpay fallbacks elsewhere in the app.
+ * "never crash, never silently allow" pattern as the Razorpay
+ * fallbacks elsewhere in the app.
  */
 export function proxy(request: NextRequest): NextResponse {
   if (!isAdminConfigured()) {

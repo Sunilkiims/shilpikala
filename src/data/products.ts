@@ -1,4 +1,4 @@
-import type { Product } from "@/types/woocommerce";
+import type { Product } from "@/types/catalog";
 import { categories } from "@/data/categories";
 
 function categoryBySlug(slug: string) {
@@ -8,12 +8,13 @@ function categoryBySlug(slug: string) {
 }
 
 /**
- * Static placeholder catalog for Day 2 browsing. Typed against the
- * future WooCommerce `Product` shape (src/types/woocommerce.ts) so the
- * shop, category and product pages can be pointed at a live fetch
- * later without changing how they render. `images` is intentionally
- * empty until real photography is added to public/images/products —
- * ProductCard renders an on-brand placeholder in its place.
+ * Seed catalogue, used once to populate storage/catalog.json the first
+ * time the site runs (see src/lib/store/catalogStore.ts). After that,
+ * the admin area at /admin/products is the real source of truth —
+ * editing products there does not touch this file. `images` is
+ * intentionally empty until real photography is added to
+ * public/images/products — ProductCard renders an on-brand placeholder
+ * in its place.
  */
 export const products: Product[] = [
   {

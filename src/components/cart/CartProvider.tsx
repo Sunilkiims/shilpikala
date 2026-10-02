@@ -7,7 +7,7 @@ import {
   useMemo,
   useReducer,
 } from "react";
-import type { CartItem } from "@/types/woocommerce";
+import type { CartItem } from "@/types/catalog";
 
 const STORAGE_KEY = "shilpikala:cart";
 

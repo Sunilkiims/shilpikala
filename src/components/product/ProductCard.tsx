@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Product } from "@/types/woocommerce";
+import type { Product } from "@/types/catalog";
 import { ProductImagePlaceholder } from "@/components/product/ProductImagePlaceholder";
 import { formatPrice } from "@/lib/utils/currency";
 
