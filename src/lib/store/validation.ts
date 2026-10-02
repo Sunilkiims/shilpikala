@@ -55,7 +55,6 @@ export function parseProductInput(
       salePrice,
       onSale,
       inStock: Boolean(b.inStock),
-      images: [],
       categorySlugs,
     },
   };

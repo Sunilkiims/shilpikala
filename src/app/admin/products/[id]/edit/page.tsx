@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { ProductForm } from "@/components/admin/ProductForm";
+import { ProductImageManager } from "@/components/admin/ProductImageManager";
 import { getAllCategories, getAllProducts } from "@/lib/catalog";
 
 export const metadata: Metadata = {
@@ -32,7 +33,18 @@ export default async function EditProductPage({ params }: PageProps) {
   return (
     <Container className="py-12 sm:py-16">
       <h1 className="text-3xl text-charcoal">Edit Product</h1>
+
       <div className="mt-10">
+        <h2 className="text-sm text-earth-brown/80">Images</h2>
+        <div className="mt-4">
+          <ProductImageManager
+            productId={product.id}
+            initialImages={product.images}
+          />
+        </div>
+      </div>
+
+      <div className="mt-12 border-t border-earth-brown/15 pt-10">
         <ProductForm categories={categories} product={product} />
       </div>
     </Container>

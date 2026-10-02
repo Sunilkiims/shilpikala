@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { Container } from "@/components/ui/Container";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
-import { ProductImagePlaceholder } from "@/components/product/ProductImagePlaceholder";
+import { ProductPhoto } from "@/components/product/ProductPhoto";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { AddToCartForm } from "@/components/cart/AddToCartForm";
 import { formatPrice } from "@/lib/utils/currency";
@@ -74,7 +74,11 @@ export default async function ProductPage({ params }: PageProps) {
       />
 
       <div className="mt-8 grid gap-10 md:grid-cols-2 md:gap-14">
-        <ProductImagePlaceholder className="rounded-sm" />
+        <ProductPhoto
+          product={product}
+          className="rounded-sm"
+          sizes="(min-width: 768px) 50vw, 100vw"
+        />
 
         <div>
           {primaryCategory && (

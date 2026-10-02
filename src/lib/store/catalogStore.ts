@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Category, Product } from "@/types/catalog";
+import type { Category, Product, ProductImage } from "@/types/catalog";
 import { products as seedProducts } from "@/data/products";
 import { categories as seedCategories } from "@/data/categories";
 import { uniqueSlug } from "@/lib/utils/slugify";
@@ -67,9 +67,17 @@ export async function getCategories(): Promise<Category[]> {
 // Product writes
 // ---------------------------------------------------------------------
 
-export type ProductInput = Omit<Product, "id" | "slug" | "categories"> & {
+export type ProductInput = Omit<
+  Product,
+  "id" | "slug" | "categories" | "images"
+> & {
   categorySlugs: string[];
   slug?: string;
+  // Omitted entirely by the admin product form (it doesn't manage
+  // photos) — createProduct defaults to [], updateProduct preserves
+  // whatever the product already had. Only the dedicated image
+  // upload/remove endpoints below actually change this array.
+  images?: ProductImage[];
 };
 
 function nextId(items: { id: number }[]): number {
@@ -91,6 +99,7 @@ export async function createProduct(input: ProductInput): Promise<Product> {
       doc.products.map((p) => p.slug)
     ),
     categories,
+    images: input.images ?? [],
   };
 
   doc.products.push(product);
@@ -119,10 +128,58 @@ export async function updateProduct(
       )
     : existing.slug;
 
-  const updated: Product = { ...input, id, slug, categories };
+  const updated: Product = {
+    ...input,
+    id,
+    slug,
+    categories,
+    images: input.images ?? existing.images,
+  };
   doc.products[index] = updated;
   await writeCatalog(doc);
   return updated;
+}
+
+// ---------------------------------------------------------------------
+// Product image writes — separate from the main form (see ProductInput
+// above), each read-modify-writes just the images array for one product.
+// ---------------------------------------------------------------------
+
+export async function addProductImage(
+  productId: number,
+  image: ProductImage
+): Promise<Product | undefined> {
+  const doc = await readCatalog();
+  const index = doc.products.findIndex((product) => product.id === productId);
+  if (index === -1) return undefined;
+
+  doc.products[index] = {
+    ...doc.products[index],
+    images: [...doc.products[index].images, image],
+  };
+  await writeCatalog(doc);
+  return doc.products[index];
+}
+
+export async function removeProductImage(
+  productId: number,
+  imageId: number
+): Promise<{ product: Product; removedImage: ProductImage } | undefined> {
+  const doc = await readCatalog();
+  const index = doc.products.findIndex((product) => product.id === productId);
+  if (index === -1) return undefined;
+
+  const removedImage = doc.products[index].images.find(
+    (image) => image.id === imageId
+  );
+  if (!removedImage) return undefined;
+
+  doc.products[index] = {
+    ...doc.products[index],
+    images: doc.products[index].images.filter((image) => image.id !== imageId),
+  };
+  await writeCatalog(doc);
+  return { product: doc.products[index], removedImage };
 }
 
 export async function deleteProduct(id: number): Promise<boolean> {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Product } from "@/types/catalog";
-import { ProductImagePlaceholder } from "@/components/product/ProductImagePlaceholder";
+import { ProductPhoto } from "@/components/product/ProductPhoto";
 import { formatPrice } from "@/lib/utils/currency";
 
 type ProductCardProps = {
@@ -12,7 +12,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/product/${product.slug}`} className="group block">
-      <ProductImagePlaceholder className="rounded-sm" />
+      <ProductPhoto product={product} className="rounded-sm" />
 
       <div className="mt-4">
         {primaryCategory && (
