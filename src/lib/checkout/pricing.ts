@@ -1,4 +1,5 @@
 import { getProductById } from "@/lib/catalog";
+import { calculateShipping } from "@/lib/shipping/calculate";
 
 export type RequestedItem = {
   productId: number;
@@ -14,6 +15,10 @@ export type PricedLineItem = {
 };
 
 export type OrderTotals = {
+  /** Sum of line items only, before shipping. */
+  itemsSubtotalInRupees: number;
+  shippingInRupees: number;
+  /** itemsSubtotalInRupees + shippingInRupees — what's actually charged. */
   amountInRupees: number;
   lineItems: PricedLineItem[];
 };
@@ -36,7 +41,7 @@ export async function computeOrderTotals(
   items: RequestedItem[]
 ): Promise<OrderTotals> {
   const lineItems: PricedLineItem[] = [];
-  let amountInRupees = 0;
+  let itemsSubtotalInRupees = 0;
 
   for (const requested of items) {
     const quantity = Math.floor(Number(requested.quantity));
@@ -62,8 +67,15 @@ export async function computeOrderTotals(
       quantity,
       price: unitPrice,
     });
-    amountInRupees += Number(unitPrice) * quantity;
+    itemsSubtotalInRupees += Number(unitPrice) * quantity;
   }
 
-  return { amountInRupees, lineItems };
+  const shippingInRupees = calculateShipping(itemsSubtotalInRupees);
+
+  return {
+    itemsSubtotalInRupees,
+    shippingInRupees,
+    amountInRupees: itemsSubtotalInRupees + shippingInRupees,
+    lineItems,
+  };
 }

@@ -47,7 +47,17 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex items-center justify-between text-base">
+          <div className="mt-4 flex items-center justify-between text-sm text-earth-brown/80">
+            <span>Subtotal</span>
+            <span>{formatPrice(String(order.itemsSubtotal))}</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-sm text-earth-brown/80">
+            <span>Shipping</span>
+            <span>
+              {order.shipping === 0 ? "Free" : formatPrice(String(order.shipping))}
+            </span>
+          </div>
+          <div className="mt-4 flex items-center justify-between border-t border-earth-brown/15 pt-4 text-base">
             <span className="text-charcoal">Total paid</span>
             <span className="text-charcoal">{formatPrice(String(order.amount))}</span>
           </div>

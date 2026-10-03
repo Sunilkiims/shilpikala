@@ -59,6 +59,8 @@ export async function POST(request: Request) {
           id: randomUUID(),
           razorpayOrderId,
           razorpayPaymentId,
+          itemsSubtotal: totals.itemsSubtotalInRupees,
+          shipping: totals.shippingInRupees,
           amount: totals.amountInRupees,
           currency: "INR",
           address,

@@ -86,6 +86,8 @@ export async function POST(request: Request) {
       amount: order.amount,
       currency: order.currency,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      itemsSubtotal: totals.itemsSubtotalInRupees,
+      shipping: totals.shippingInRupees,
     });
   } catch (error) {
     console.error("[checkout] Razorpay order creation failed:", error);

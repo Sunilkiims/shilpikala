@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useCart } from "@/components/cart/CartProvider";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils/currency";
+import { calculateShipping } from "@/lib/shipping/calculate";
+import { shippingConfig } from "@/lib/shipping/config";
 
 export function CartView() {
   const { items, removeItem, setQuantity, subtotal } = useCart();
+  const shipping = calculateShipping(subtotal);
+  const total = subtotal + shipping;
 
   if (items.length === 0) {
     return (
@@ -80,13 +84,24 @@ export function CartView() {
       </ul>
 
       <div className="border-t border-earth-brown/15 pt-6 lg:border-t-0 lg:border-l lg:pl-10 lg:pt-0">
-        <div className="flex items-center justify-between text-base">
-          <span className="text-charcoal">Subtotal</span>
-          <span className="text-charcoal">{formatPrice(String(subtotal))}</span>
+        <div className="flex items-center justify-between text-sm text-earth-brown/80">
+          <span>Subtotal</span>
+          <span>{formatPrice(String(subtotal))}</span>
         </div>
-        <p className="mt-2 text-xs text-earth-brown/60">
-          Shipping and taxes calculated at checkout.
-        </p>
+        <div className="mt-2 flex items-center justify-between text-sm text-earth-brown/80">
+          <span>Shipping</span>
+          <span>{shipping === 0 ? "Free" : formatPrice(String(shipping))}</span>
+        </div>
+        {shipping > 0 && (
+          <p className="mt-2 text-xs text-earth-brown/55">
+            Free shipping on orders over{" "}
+            {formatPrice(String(shippingConfig.freeShippingThresholdInRupees))}.
+          </p>
+        )}
+        <div className="mt-4 flex items-center justify-between border-t border-earth-brown/15 pt-4 text-base">
+          <span className="text-charcoal">Total</span>
+          <span className="text-charcoal">{formatPrice(String(total))}</span>
+        </div>
         <div className="mt-6">
           <Button href="/checkout" className="w-full">
             Proceed to Checkout

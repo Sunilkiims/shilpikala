@@ -5,6 +5,10 @@ export type StoredOrder = {
   id: string;
   razorpayOrderId: string;
   razorpayPaymentId: string;
+  /** Items subtotal before shipping. */
+  itemsSubtotal: number;
+  shipping: number;
+  /** itemsSubtotal + shipping — what was actually charged. */
   amount: number;
   currency: "INR";
   address: Address;

@@ -65,6 +65,15 @@ export default async function AdminOrdersPage() {
                 ))}
               </ul>
 
+              <div className="mt-2 flex items-center justify-between text-xs text-earth-brown/55">
+                <span>Shipping</span>
+                <span>
+                  {order.shipping === 0
+                    ? "Free"
+                    : formatPrice(String(order.shipping))}
+                </span>
+              </div>
+
               <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
                 <p className="text-earth-brown/55">
                   {order.razorpayOrderId} · {order.razorpayPaymentId}
