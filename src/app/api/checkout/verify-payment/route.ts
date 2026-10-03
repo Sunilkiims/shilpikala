@@ -5,7 +5,13 @@ import { verifyPaymentSignature } from "@/lib/razorpay/verify";
 import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
 import { appendOrder, getOrderByRazorpayOrderId } from "@/lib/orders/store";
 import { decrementStock } from "@/lib/store/catalogStore";
+import { sendEmail } from "@/lib/email/send";
+import { isAdminNotificationConfigured } from "@/lib/email/config";
+import { adminOrderAlertEmail, orderConfirmationEmail } from "@/lib/email/templates";
+import { isValidEmail } from "@/lib/utils/email";
+import { emailConfig } from "@/lib/email/config";
 import type { Address } from "@/types/catalog";
+import type { StoredOrder } from "@/lib/orders/types";
 
 type VerifyRequestBody = {
   razorpayOrderId?: string;
@@ -13,6 +19,7 @@ type VerifyRequestBody = {
   razorpaySignature?: string;
   items?: { productId: number; quantity: number }[];
   address?: Address;
+  email?: string;
 };
 
 export async function POST(request: Request) {
@@ -30,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const { razorpayOrderId, razorpayPaymentId, razorpaySignature, items, address } =
+  const { razorpayOrderId, razorpayPaymentId, razorpaySignature, items, address, email } =
     body;
 
   if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
@@ -56,7 +63,7 @@ export async function POST(request: Request) {
       const existing = await getOrderByRazorpayOrderId(razorpayOrderId);
       if (!existing) {
         const totals = await computeOrderTotals(items);
-        await appendOrder({
+        const order: StoredOrder = {
           id: randomUUID(),
           razorpayOrderId,
           razorpayPaymentId,
@@ -64,15 +71,37 @@ export async function POST(request: Request) {
           shipping: totals.shippingInRupees,
           amount: totals.amountInRupees,
           currency: "INR",
+          customerEmail: typeof email === "string" ? email : "",
           address,
           items: totals.lineItems,
           status: "paid",
           createdAt: new Date().toISOString(),
-        });
+        };
+        await appendOrder(order);
         // Only runs once per order, since it's inside the !existing
         // guard above — a retried verify-payment call for an order
-        // already recorded won't double-decrement stock.
+        // already recorded won't double-decrement stock or re-send mail.
         await decrementStock(items);
+
+        // Email is a best-effort side effect of a payment that has
+        // already succeeded and already been persisted above — a
+        // send failure here must never change the response below.
+        if (isValidEmail(order.customerEmail)) {
+          const confirmation = orderConfirmationEmail(order);
+          await sendEmail({
+            to: order.customerEmail,
+            subject: confirmation.subject,
+            html: confirmation.html,
+          });
+        }
+        if (isAdminNotificationConfigured()) {
+          const alert = adminOrderAlertEmail(order);
+          await sendEmail({
+            to: emailConfig.adminNotificationEmail,
+            subject: alert.subject,
+            html: alert.html,
+          });
+        }
       }
     } catch (error) {
       // A verified payment should never be reported as failed just

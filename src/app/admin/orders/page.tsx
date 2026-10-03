@@ -42,6 +42,7 @@ export default async function AdminOrdersPage() {
                   {order.address.fullName}{" "}
                   <span className="text-earth-brown/60">
                     — {order.address.city}, {order.address.state}
+                    {order.customerEmail && ` · ${order.customerEmail}`}
                   </span>
                 </p>
                 <p className="text-xs text-earth-brown/55">

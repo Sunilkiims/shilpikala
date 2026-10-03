@@ -42,6 +42,7 @@ export function CheckoutForm() {
   const { items, subtotal, clear } = useCart();
   const shipping = calculateShipping(subtotal);
   const total = subtotal + shipping;
+  const [email, setEmail] = useState("");
   const [address, setAddress] = useState<Address>(initialAddress);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -65,6 +66,7 @@ export function CheckoutForm() {
             quantity: item.quantity,
           })),
           address,
+          email,
         }),
       });
 
@@ -106,6 +108,7 @@ export function CheckoutForm() {
         prefill: {
           name: address.fullName,
           contact: address.phone,
+          email,
         },
         theme: { color: "#a65335" },
         handler: async (response) => {
@@ -122,6 +125,7 @@ export function CheckoutForm() {
                   quantity: item.quantity,
                 })),
                 address,
+                email,
               }),
             });
             const verifyBody = await verifyRes.json();
@@ -184,6 +188,13 @@ export function CheckoutForm() {
   return (
     <form onSubmit={handleSubmit} className="grid gap-10 lg:grid-cols-3 lg:gap-16">
       <div className="grid gap-5 lg:col-span-2">
+        <Field
+          label="Email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          required
+        />
         <Field
           label="Full name"
           value={address.fullName}

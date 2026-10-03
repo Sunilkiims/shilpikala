@@ -11,6 +11,7 @@ export type StoredOrder = {
   /** itemsSubtotal + shipping — what was actually charged. */
   amount: number;
   currency: "INR";
+  customerEmail: string;
   address: Address;
   items: PricedLineItem[];
   status: "paid";

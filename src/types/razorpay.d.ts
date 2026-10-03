@@ -16,6 +16,7 @@ interface RazorpayCheckoutOptions {
   prefill?: {
     name?: string;
     contact?: string;
+    email?: string;
   };
   theme?: { color?: string };
   handler: (response: RazorpayCheckoutResponse) => void;

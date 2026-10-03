@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { getRazorpayClient } from "@/lib/razorpay/client";
 import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
+import { isValidEmail } from "@/lib/utils/email";
 import type { Address } from "@/types/catalog";
 
 type CreateOrderRequestItem = {
@@ -12,6 +13,7 @@ type CreateOrderRequestItem = {
 type CreateOrderRequestBody = {
   items: CreateOrderRequestItem[];
   address: Address;
+  email?: string;
 };
 
 function isAddress(value: unknown): value is Address {
@@ -53,6 +55,9 @@ export async function POST(request: Request) {
   }
   if (!isAddress(body.address)) {
     return NextResponse.json({ error: "invalid_address" }, { status: 400 });
+  }
+  if (!isValidEmail(body.email)) {
+    return NextResponse.json({ error: "invalid_email" }, { status: 400 });
   }
 
   let totals;
