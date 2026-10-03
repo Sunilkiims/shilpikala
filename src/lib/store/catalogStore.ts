@@ -191,6 +191,40 @@ export async function deleteProduct(id: number): Promise<boolean> {
   return true;
 }
 
+/**
+ * Reduces stockQuantity for each item after a verified payment. Only
+ * touches products that have a tracked quantity — untracked products
+ * (stockQuantity undefined, e.g. made-to-order pieces) are left alone.
+ * Clamps at 0 rather than going negative; auto-updates inStock to
+ * match. Caller is responsible for idempotency (see verify-payment
+ * route — only called once per order, guarded by the existing-order
+ * check there).
+ */
+export async function decrementStock(
+  items: { productId: number; quantity: number }[]
+): Promise<void> {
+  const doc = await readCatalog();
+  let changed = false;
+
+  for (const item of items) {
+    const index = doc.products.findIndex((p) => p.id === item.productId);
+    if (index === -1) continue;
+
+    const product = doc.products[index];
+    if (typeof product.stockQuantity !== "number") continue;
+
+    const newQuantity = Math.max(0, product.stockQuantity - item.quantity);
+    doc.products[index] = {
+      ...product,
+      stockQuantity: newQuantity,
+      inStock: newQuantity > 0,
+    };
+    changed = true;
+  }
+
+  if (changed) await writeCatalog(doc);
+}
+
 // ---------------------------------------------------------------------
 // Category writes
 // ---------------------------------------------------------------------

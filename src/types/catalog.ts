@@ -47,6 +47,13 @@ export interface Product {
   salePrice?: string;
   onSale: boolean;
   inStock: boolean;
+  /**
+   * Tracked units remaining. Optional — when set, it's the source of
+   * truth for `inStock` (auto-derived, decremented after a verified
+   * payment). Left undefined for made-to-order/custom pieces, where
+   * `inStock` stays a manual toggle in the admin form.
+   */
+  stockQuantity?: number;
   categories: Category[];
   images: ProductImage[];
   variations?: ProductVariation[];

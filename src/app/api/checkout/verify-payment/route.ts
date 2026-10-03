@@ -4,6 +4,7 @@ import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { verifyPaymentSignature } from "@/lib/razorpay/verify";
 import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
 import { appendOrder, getOrderByRazorpayOrderId } from "@/lib/orders/store";
+import { decrementStock } from "@/lib/store/catalogStore";
 import type { Address } from "@/types/catalog";
 
 type VerifyRequestBody = {
@@ -68,6 +69,10 @@ export async function POST(request: Request) {
           status: "paid",
           createdAt: new Date().toISOString(),
         });
+        // Only runs once per order, since it's inside the !existing
+        // guard above — a retried verify-payment call for an order
+        // already recorded won't double-decrement stock.
+        await decrementStock(items);
       }
     } catch (error) {
       // A verified payment should never be reported as failed just

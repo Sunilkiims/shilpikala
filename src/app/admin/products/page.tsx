@@ -40,7 +40,11 @@ export default async function AdminProductsPage() {
               <p className="mt-1 text-xs text-earth-brown/55">
                 {product.categories.map((c) => c.name).join(", ") || "Uncategorized"}
                 {" · "}
-                {product.inStock ? "In stock" : "Out of stock"}
+                {typeof product.stockQuantity === "number"
+                  ? `${product.stockQuantity} in stock`
+                  : product.inStock
+                    ? "In stock"
+                    : "Out of stock"}
               </p>
             </div>
             <div className="flex items-center gap-4">

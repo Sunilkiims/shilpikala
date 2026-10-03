@@ -25,7 +25,11 @@ export type OrderTotals = {
 
 export class PricingError extends Error {
   constructor(
-    public code: "invalid_quantity" | "unknown_product" | "out_of_stock",
+    public code:
+      | "invalid_quantity"
+      | "unknown_product"
+      | "out_of_stock"
+      | "insufficient_stock",
     public productId: number
   ) {
     super(code);
@@ -55,6 +59,12 @@ export async function computeOrderTotals(
     }
     if (!product.inStock) {
       throw new PricingError("out_of_stock", requested.productId);
+    }
+    if (
+      typeof product.stockQuantity === "number" &&
+      product.stockQuantity < quantity
+    ) {
+      throw new PricingError("insufficient_stock", requested.productId);
     }
 
     const unitPrice =

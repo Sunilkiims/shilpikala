@@ -27,6 +27,12 @@ export function ProductForm({ categories, product }: ProductFormProps) {
   const [onSale, setOnSale] = useState(product?.onSale ?? false);
   const [salePrice, setSalePrice] = useState(product?.salePrice ?? "");
   const [inStock, setInStock] = useState(product?.inStock ?? true);
+  const [trackStock, setTrackStock] = useState(
+    product?.stockQuantity !== undefined
+  );
+  const [stockQuantity, setStockQuantity] = useState(
+    product?.stockQuantity !== undefined ? String(product.stockQuantity) : ""
+  );
   const [categorySlugs, setCategorySlugs] = useState<string[]>(
     product?.categories.map((c) => c.slug) ?? []
   );
@@ -55,6 +61,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       onSale,
       salePrice: onSale ? salePrice : undefined,
       inStock,
+      stockQuantity: trackStock && stockQuantity !== "" ? stockQuantity : undefined,
       categorySlugs,
     };
 
@@ -165,16 +172,47 @@ export function ProductForm({ categories, product }: ProductFormProps) {
         </label>
       )}
 
-      <div className="flex items-center gap-3">
-        <input
-          id="inStock"
-          type="checkbox"
-          checked={inStock}
-          onChange={(e) => setInStock(e.target.checked)}
-        />
-        <label htmlFor="inStock" className="text-sm text-earth-brown/80">
-          In stock
-        </label>
+      <div>
+        <div className="flex items-center gap-3">
+          <input
+            id="trackStock"
+            type="checkbox"
+            checked={trackStock}
+            onChange={(e) => setTrackStock(e.target.checked)}
+          />
+          <label htmlFor="trackStock" className="text-sm text-earth-brown/80">
+            Track stock quantity
+          </label>
+        </div>
+
+        {trackStock ? (
+          <label className="mt-3 block max-w-[180px]">
+            <span className="text-sm text-earth-brown/80">Units in stock</span>
+            <input
+              className={fieldClass}
+              type="number"
+              min="0"
+              step="1"
+              value={stockQuantity}
+              onChange={(e) => setStockQuantity(e.target.value)}
+            />
+            <span className="mt-1 block text-xs text-earth-brown/55">
+              Decreases automatically after each paid order.
+            </span>
+          </label>
+        ) : (
+          <div className="mt-3 flex items-center gap-3">
+            <input
+              id="inStock"
+              type="checkbox"
+              checked={inStock}
+              onChange={(e) => setInStock(e.target.checked)}
+            />
+            <label htmlFor="inStock" className="text-sm text-earth-brown/80">
+              In stock
+            </label>
+          </div>
+        )}
       </div>
 
       <div>

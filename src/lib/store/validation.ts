@@ -40,6 +40,26 @@ export function parseProductInput(
     ? b.categorySlugs.filter((s): s is string => typeof s === "string")
     : [];
 
+  // Stock quantity is optional — when provided, it's the source of
+  // truth for inStock (overrides the manual checkbox). Left unset,
+  // inStock stays whatever the admin checked by hand (for made-to-order
+  // or custom pieces with no fixed quantity).
+  let stockQuantity: number | undefined;
+  if (typeof b.stockQuantity === "number" && Number.isFinite(b.stockQuantity)) {
+    stockQuantity = Math.max(0, Math.floor(b.stockQuantity));
+  } else if (
+    typeof b.stockQuantity === "string" &&
+    b.stockQuantity.trim() !== ""
+  ) {
+    const parsed = Number(b.stockQuantity);
+    if (!Number.isFinite(parsed)) {
+      return { ok: false, error: "invalid_stock_quantity" };
+    }
+    stockQuantity = Math.max(0, Math.floor(parsed));
+  }
+
+  const inStock = stockQuantity !== undefined ? stockQuantity > 0 : Boolean(b.inStock);
+
   return {
     ok: true,
     value: {
@@ -54,7 +74,8 @@ export function parseProductInput(
       regularPrice,
       salePrice,
       onSale,
-      inStock: Boolean(b.inStock),
+      inStock,
+      stockQuantity,
       categorySlugs,
     },
   };

@@ -79,7 +79,9 @@ export function CheckoutForm() {
         setErrorMessage(
           body.error === "out_of_stock"
             ? "One of the items in your cart just sold out. Please update your cart."
-            : "We couldn't start checkout. Please check your details and try again."
+            : body.error === "insufficient_stock"
+              ? "There isn't enough stock left for one of the items in your cart. Please lower the quantity."
+              : "We couldn't start checkout. Please check your details and try again."
         );
         return;
       }
