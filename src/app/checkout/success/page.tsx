@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -64,6 +65,14 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
           <p className="mt-6 text-sm leading-relaxed text-earth-brown/75">
             Shipping to {order.address.fullName}, {order.address.city},{" "}
             {order.address.state}
+          </p>
+          <p className="mt-6 text-xs text-earth-brown/55">
+            Save your order reference above — you can look this order up
+            any time at{" "}
+            <Link href="/track-order" className="text-terracotta hover:text-terracotta-deep">
+              Track Order
+            </Link>
+            .
           </p>
         </div>
       ) : (
