@@ -35,7 +35,9 @@ function formatDate(iso: string): string {
 export function TrackOrderForm() {
   const [orderId, setOrderId] = useState("");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error" | "rate_limited">(
+    "idle"
+  );
   const [order, setOrder] = useState<TrackedOrder | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -50,6 +52,10 @@ export function TrackOrderForm() {
         body: JSON.stringify({ orderId: orderId.trim(), email: email.trim() }),
       });
 
+      if (response.status === 429) {
+        setStatus("rate_limited");
+        return;
+      }
       if (!response.ok) {
         setStatus("error");
         return;
@@ -147,6 +153,11 @@ export function TrackOrderForm() {
         <p className="text-sm text-terracotta-deep" role="alert">
           We couldn&apos;t find an order with those details. Double-check the
           reference and email, then try again.
+        </p>
+      )}
+      {status === "rate_limited" && (
+        <p className="text-sm text-terracotta-deep" role="alert">
+          Too many lookup attempts. Please wait a few minutes and try again.
         </p>
       )}
 
