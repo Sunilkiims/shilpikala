@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { AddToCartForm } from "@/components/cart/AddToCartForm";
+import { ReviewsSection } from "@/components/product/ReviewsSection";
 import { formatPrice } from "@/lib/utils/currency";
 import {
   getAllProducts,
@@ -128,6 +129,8 @@ export default async function ProductPage({ params }: PageProps) {
           </div>
         </div>
       )}
+
+      <ReviewsSection productId={product.id} />
     </Container>
   );
 }
