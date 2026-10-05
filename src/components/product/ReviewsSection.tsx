@@ -1,17 +1,20 @@
-import { getReviewsByProductId } from "@/lib/reviews/store";
+import type { StoredReview } from "@/lib/reviews/types";
 import { StarRating } from "@/components/product/StarRating";
 import { ReviewForm } from "@/components/product/ReviewForm";
 
 type ReviewsSectionProps = {
   productId: number;
+  /** Pre-fetched by the page, so the same data backs both this visible
+   *  list and the Product JSON-LD's aggregateRating — one source of
+   *  truth, no duplicate fetch. */
+  reviews: StoredReview[];
 };
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { dateStyle: "medium" });
 }
 
-export async function ReviewsSection({ productId }: ReviewsSectionProps) {
-  const reviews = await getReviewsByProductId(productId, "approved");
+export function ReviewsSection({ productId, reviews }: ReviewsSectionProps) {
   const average =
     reviews.length > 0
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length

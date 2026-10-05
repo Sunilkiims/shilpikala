@@ -4,6 +4,8 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ShopBrowser } from "@/components/product/ShopBrowser";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildBreadcrumbSchema } from "@/lib/seo/structuredData";
 import { getAllCategories, getAllProducts } from "@/lib/catalog";
 
 export const revalidate = 300;
@@ -20,9 +22,12 @@ export default async function ShopPage() {
     getAllCategories(),
   ]);
 
+  const breadcrumbItems = [{ label: "Home", href: "/" }, { label: "Shop" }];
+
   return (
     <Container className="py-12 sm:py-16">
-      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Shop" }]} />
+      <JsonLd data={buildBreadcrumbSchema(breadcrumbItems)} />
+      <Breadcrumbs items={breadcrumbItems} />
 
       <div className="mt-6">
         <SectionHeading

@@ -8,7 +8,10 @@ import { ProductGrid } from "@/components/product/ProductGrid";
 import { AddToCartForm } from "@/components/cart/AddToCartForm";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { ReviewsSection } from "@/components/product/ReviewsSection";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/seo/structuredData";
 import { formatPrice } from "@/lib/utils/currency";
+import { getReviewsByProductId } from "@/lib/reviews/store";
 import {
   getAllProducts,
   getProductBySlug,
@@ -50,30 +53,34 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   const primaryCategory = product.categories[0];
-  const relatedCandidates = primaryCategory
-    ? await getProductsByCategorySlug(primaryCategory.slug)
-    : [];
+  const [relatedCandidates, approvedReviews] = await Promise.all([
+    primaryCategory ? getProductsByCategorySlug(primaryCategory.slug) : [],
+    getReviewsByProductId(product.id, "approved"),
+  ]);
   const related = relatedCandidates
     .filter((candidate) => candidate.id !== product.id)
     .slice(0, 4);
 
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    { label: "Shop", href: "/shop" },
+    ...(primaryCategory
+      ? [
+          {
+            label: primaryCategory.name,
+            href: `/categories/${primaryCategory.slug}`,
+          },
+        ]
+      : []),
+    { label: product.name },
+  ];
+
   return (
     <Container className="py-12 sm:py-16">
-      <Breadcrumbs
-        items={[
-          { label: "Home", href: "/" },
-          { label: "Shop", href: "/shop" },
-          ...(primaryCategory
-            ? [
-                {
-                  label: primaryCategory.name,
-                  href: `/categories/${primaryCategory.slug}`,
-                },
-              ]
-            : []),
-          { label: product.name },
-        ]}
-      />
+      <JsonLd data={buildProductSchema(product, approvedReviews)} />
+      <JsonLd data={buildBreadcrumbSchema(breadcrumbItems)} />
+
+      <Breadcrumbs items={breadcrumbItems} />
 
       <div className="mt-8 grid gap-10 md:grid-cols-2 md:gap-14">
         <ProductGallery product={product} className="rounded-sm" />
@@ -135,7 +142,7 @@ export default async function ProductPage({ params }: PageProps) {
         </div>
       )}
 
-      <ReviewsSection productId={product.id} />
+      <ReviewsSection productId={product.id} reviews={approvedReviews} />
     </Container>
   );
 }

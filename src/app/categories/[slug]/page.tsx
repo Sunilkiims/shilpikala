@@ -5,6 +5,8 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductGrid } from "@/components/product/ProductGrid";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildBreadcrumbSchema } from "@/lib/seo/structuredData";
 import {
   getAllCategories,
   getCategoryBySlug,
@@ -46,16 +48,16 @@ export default async function CategoryPage({ params }: PageProps) {
   }
 
   const categoryProducts = await getProductsByCategorySlug(slug);
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    { label: "Shop", href: "/shop" },
+    { label: category.name },
+  ];
 
   return (
     <Container className="py-12 sm:py-16">
-      <Breadcrumbs
-        items={[
-          { label: "Home", href: "/" },
-          { label: "Shop", href: "/shop" },
-          { label: category.name },
-        ]}
-      />
+      <JsonLd data={buildBreadcrumbSchema(breadcrumbItems)} />
+      <Breadcrumbs items={breadcrumbItems} />
 
       <div className="mt-6">
         <SectionHeading title={category.name} description={category.description} />
