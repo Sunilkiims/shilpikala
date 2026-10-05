@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { AddToCartForm } from "@/components/cart/AddToCartForm";
+import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { ReviewsSection } from "@/components/product/ReviewsSection";
 import { formatPrice } from "@/lib/utils/currency";
 import {
@@ -117,6 +118,10 @@ export default async function ProductPage({ params }: PageProps) {
                 Currently out of stock.
               </p>
             )}
+          </div>
+
+          <div className="mt-5">
+            <WishlistButton productId={product.id} productName={product.name} />
           </div>
         </div>
       </div>

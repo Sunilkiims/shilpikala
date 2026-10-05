@@ -2,11 +2,8 @@ import Link from "next/link";
 import { siteConfig } from "@/lib/config/site";
 import { MobileNav } from "@/components/header/MobileNav";
 import { CartIndicator } from "@/components/cart/CartIndicator";
-import {
-  AccountIcon,
-  SearchIcon,
-  WishlistIcon,
-} from "@/components/ui/icons";
+import { WishlistIndicator } from "@/components/wishlist/WishlistIndicator";
+import { AccountIcon, SearchIcon } from "@/components/ui/icons";
 
 export function Header() {
   return (
@@ -49,13 +46,7 @@ export function Header() {
           >
             <AccountIcon className="h-5 w-5" />
           </Link>
-          <Link
-            href="/wishlist"
-            aria-label="Your wishlist"
-            className="hidden transition-colors hover:text-terracotta sm:block"
-          >
-            <WishlistIcon className="h-5 w-5" />
-          </Link>
+          <WishlistIndicator />
           <CartIndicator />
 
           <MobileNav links={siteConfig.headerNav} />
