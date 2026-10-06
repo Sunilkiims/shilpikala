@@ -48,8 +48,8 @@ export async function computeOrderTotals(
   let itemsSubtotalInRupees = 0;
 
   for (const requested of items) {
-    const quantity = Math.floor(Number(requested.quantity));
-    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 99) {
+    const quantity = Number(requested.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
       throw new PricingError("invalid_quantity", requested.productId);
     }
 
