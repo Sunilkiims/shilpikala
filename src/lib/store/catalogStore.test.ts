@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { useTempStorageDir } from "@/test-support/tempStorageDir";
+import { isolateStorageDir } from "@/test-support/tempStorageDir";
 import type * as CatalogStoreModule from "@/lib/store/catalogStore";
 
 let cleanup: () => void;
 let store: typeof CatalogStoreModule;
 
 beforeEach(async () => {
-  cleanup = useTempStorageDir();
+  cleanup = isolateStorageDir();
   store = await import("@/lib/store/catalogStore");
 });
 

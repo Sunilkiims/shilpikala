@@ -14,11 +14,11 @@ import { vi } from "vitest";
  *
  * Usage:
  *   let cleanup: () => void;
- *   beforeEach(() => { cleanup = useTempStorageDir(); });
+ *   beforeEach(() => { cleanup = isolateStorageDir(); });
  *   afterEach(() => cleanup());
  *   const store = await import("@/lib/store/catalogStore");
  */
-export function useTempStorageDir(): () => void {
+export function isolateStorageDir(): () => void {
   const originalCwd = process.cwd();
   const dir = mkdtempSync(path.join(tmpdir(), "shilpikala-test-"));
   process.chdir(dir);
