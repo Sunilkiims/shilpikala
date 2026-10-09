@@ -120,12 +120,8 @@ export function CheckoutForm() {
                 razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
-                items: items.map((item) => ({
-                  productId: item.productId,
-                  quantity: item.quantity,
-                })),
-                address,
-                email,
+                // Deliberately nothing else: the server records the order
+                // from the snapshot it saved when the payment was created.
               }),
             });
             const verifyBody = await verifyRes.json();

@@ -1,7 +1,10 @@
 import { createHmac } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { isolateStorageDir } from "@/test-support/tempStorageDir";
 import { jsonRequest, malformedJsonRequest } from "@/test-support/request";
+import type { PendingOrder } from "@/lib/orders/pendingStore";
 
 const { sendEmail } = vi.hoisted(() => ({ sendEmail: vi.fn() }));
 
@@ -23,41 +26,49 @@ let cleanup: () => void;
 let POST: (request: Request) => Promise<Response>;
 let catalog: typeof import("@/lib/store/catalogStore");
 let orderStore: typeof import("@/lib/orders/store");
+let pendingStore: typeof import("@/lib/orders/pendingStore");
 
 function sign(orderId: string, paymentId: string, secret = SECRET) {
   return createHmac("sha256", secret).update(`${orderId}|${paymentId}`).digest("hex");
 }
 
-function product(overrides: Record<string, unknown> = {}) {
+/** The only thing the browser legitimately sends after paying. */
+function verifyBody(orderId = "order_1", paymentId = "pay_1", signature?: string) {
   return {
-    name: "Verify Test Product",
-    description: "For verify-payment tests.",
-    price: "1000.00",
-    regularPrice: "1000.00",
-    onSale: false,
-    inStock: true,
-    categorySlugs: [],
+    razorpayOrderId: orderId,
+    razorpayPaymentId: paymentId,
+    razorpaySignature: signature ?? sign(orderId, paymentId),
+  };
+}
+
+function pendingOrder(overrides: Partial<PendingOrder> = {}): PendingOrder {
+  return {
+    razorpayOrderId: "order_1",
+    items: [
+      { productId: 1, name: "Snapshot Product", slug: "snapshot-product", quantity: 2, price: "1000.00" },
+    ],
+    itemsSubtotal: 2000,
+    shipping: 150,
+    amount: 2150,
+    amountInPaise: 215000,
+    customerEmail: "jane@example.com",
+    address,
+    createdAt: new Date().toISOString(),
     ...overrides,
   };
 }
 
-function verifyBody(opts: {
-  orderId?: string;
-  paymentId?: string;
-  signature?: string;
-  items?: { productId: number; quantity: number }[];
-  email?: string;
-}) {
-  const orderId = opts.orderId ?? "order_1";
-  const paymentId = opts.paymentId ?? "pay_1";
-  return {
-    razorpayOrderId: orderId,
-    razorpayPaymentId: paymentId,
-    razorpaySignature: opts.signature ?? sign(orderId, paymentId),
-    items: opts.items,
-    address,
-    email: opts.email ?? "jane@example.com",
-  };
+function trackedProduct(stockQuantity: number | undefined, price = "1000.00") {
+  return catalog.createProduct({
+    name: "Tracked Product",
+    description: "For verify-payment tests.",
+    price,
+    regularPrice: price,
+    onSale: false,
+    inStock: true,
+    stockQuantity,
+    categorySlugs: [],
+  });
 }
 
 async function setup(env: { configured?: boolean; adminEmail?: string } = {}) {
@@ -70,6 +81,7 @@ async function setup(env: { configured?: boolean; adminEmail?: string } = {}) {
   vi.stubEnv("ADMIN_NOTIFICATION_EMAIL", adminEmail ?? "");
   catalog = await import("@/lib/store/catalogStore");
   orderStore = await import("@/lib/orders/store");
+  pendingStore = await import("@/lib/orders/pendingStore");
   ({ POST } = await import("@/app/api/checkout/verify-payment/route"));
 }
 
@@ -80,14 +92,14 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   cleanup();
 });
 
 describe("POST /api/checkout/verify-payment — gatekeeping", () => {
   it("returns 503 when Razorpay isn't configured", async () => {
     await setup({ configured: false });
-    const response = await POST(jsonRequest(URL, { body: verifyBody({}) }));
-    expect(response.status).toBe(503);
+    expect((await POST(jsonRequest(URL, { body: verifyBody() }))).status).toBe(503);
   });
 
   it("rejects malformed JSON", async () => {
@@ -102,17 +114,15 @@ describe("POST /api/checkout/verify-payment — gatekeeping", () => {
     expect(await response.json()).toEqual({ error: "missing_fields" });
   });
 
-  it("rejects a bad signature, and stores / decrements / emails nothing", async () => {
+  it("rejects a bad signature and records / decrements / emails nothing", async () => {
     await setup();
-    const p = await catalog.createProduct(product({ stockQuantity: 5 }));
+    const p = await trackedProduct(5);
+    await pendingStore.savePendingOrder(
+      pendingOrder({ items: [{ productId: p.id, name: p.name, slug: p.slug, quantity: 1, price: "1000.00" }] })
+    );
 
     const response = await POST(
-      jsonRequest(URL, {
-        body: verifyBody({
-          signature: sign("order_1", "pay_1", "attacker_secret"),
-          items: [{ productId: p.id, quantity: 1 }],
-        }),
-      })
+      jsonRequest(URL, { body: verifyBody("order_1", "pay_1", sign("order_1", "pay_1", "attacker")) })
     );
 
     expect(response.status).toBe(400);
@@ -120,123 +130,198 @@ describe("POST /api/checkout/verify-payment — gatekeeping", () => {
     expect(await orderStore.getAllOrders()).toHaveLength(0);
     expect((await catalog.getProducts()).find((x) => x.id === p.id)?.stockQuantity).toBe(5);
     expect(sendEmail).not.toHaveBeenCalled();
+    // The snapshot must survive a forged attempt so the real payment can still complete.
+    expect(await pendingStore.getPendingOrder("order_1")).toBeDefined();
   });
 
   it("rejects a valid signature replayed against a different order id", async () => {
     await setup();
+    await pendingStore.savePendingOrder(pendingOrder({ razorpayOrderId: "order_OTHER" }));
     const response = await POST(
-      jsonRequest(URL, {
-        body: verifyBody({
-          orderId: "order_OTHER",
-          paymentId: "pay_1",
-          signature: sign("order_1", "pay_1"),
-        }),
-      })
+      jsonRequest(URL, { body: verifyBody("order_OTHER", "pay_1", sign("order_1", "pay_1")) })
     );
     expect(response.status).toBe(400);
+    expect(await orderStore.getAllOrders()).toHaveLength(0);
   });
 });
 
-describe("POST /api/checkout/verify-payment — a genuine payment", () => {
-  beforeEach(async () => {
-    await setup();
-  });
+describe("POST /api/checkout/verify-payment — recording from the snapshot", () => {
+  beforeEach(() => setup());
 
-  it("verifies and persists the order with server-computed totals", async () => {
-    const p = await catalog.createProduct(product({ price: "1000.00" }));
+  it("records exactly what was snapshotted and charged", async () => {
+    await pendingStore.savePendingOrder(pendingOrder());
 
-    const response = await POST(
-      jsonRequest(URL, { body: verifyBody({ items: [{ productId: p.id, quantity: 2 }] }) })
-    );
+    const response = await POST(jsonRequest(URL, { body: verifyBody() }));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ verified: true, orderId: "order_1" });
 
     const [stored] = await orderStore.getAllOrders();
-    expect(stored.itemsSubtotal).toBe(2000);
-    expect(stored.shipping).toBe(150);
-    expect(stored.amount).toBe(2150);
-    expect(stored.status).toBe("paid");
-    expect(stored.customerEmail).toBe("jane@example.com");
-    expect(stored.razorpayPaymentId).toBe("pay_1");
-    expect(stored.items[0]).toMatchObject({ productId: p.id, quantity: 2, price: "1000.00" });
+    expect(stored).toMatchObject({
+      razorpayOrderId: "order_1",
+      razorpayPaymentId: "pay_1",
+      itemsSubtotal: 2000,
+      shipping: 150,
+      amount: 2150,
+      status: "paid",
+      customerEmail: "jane@example.com",
+    });
+    expect(stored.items[0]).toMatchObject({ name: "Snapshot Product", quantity: 2, price: "1000.00" });
+    expect(stored.address.fullName).toBe("Jane Doe");
   });
 
-  it("decrements tracked stock, flipping inStock off at zero", async () => {
-    const p = await catalog.createProduct(product({ stockQuantity: 3 }));
+  // The attack this redesign closes: pay for a cheap cart, then claim an
+  // expensive one at verification time.
+  it("IGNORES a cart, address, email or amount the browser claims at verify time", async () => {
+    await pendingStore.savePendingOrder(pendingOrder());
+    const pricey = await trackedProduct(undefined, "50000.00");
 
     await POST(
       jsonRequest(URL, {
-        body: verifyBody({ orderId: "order_a", items: [{ productId: p.id, quantity: 2 }] }),
+        body: {
+          ...verifyBody(),
+          items: [{ productId: pricey.id, quantity: 1 }],
+          address: { ...address, fullName: "Someone Else", city: "Elsewhere" },
+          email: "attacker@example.com",
+          amount: 5000000,
+        },
       })
     );
-    let current = (await catalog.getProducts()).find((x) => x.id === p.id)!;
-    expect(current.stockQuantity).toBe(1);
-    expect(current.inStock).toBe(true);
 
-    await POST(
-      jsonRequest(URL, {
-        body: verifyBody({
-          orderId: "order_b",
-          paymentId: "pay_b",
-          items: [{ productId: p.id, quantity: 1 }],
-        }),
-      })
+    const [stored] = await orderStore.getAllOrders();
+    expect(stored.amount).toBe(2150);
+    expect(stored.items).toHaveLength(1);
+    expect(stored.items[0].name).toBe("Snapshot Product");
+    expect(stored.address.fullName).toBe("Jane Doe");
+    expect(stored.customerEmail).toBe("jane@example.com");
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "jane@example.com" }));
+    expect(sendEmail).not.toHaveBeenCalledWith(expect.objectContaining({ to: "attacker@example.com" }));
+  });
+
+  it("keeps the charged price even if the catalogue price changes before verification", async () => {
+    const p = await trackedProduct(undefined, "1000.00");
+    await pendingStore.savePendingOrder(
+      pendingOrder({ items: [{ productId: p.id, name: p.name, slug: p.slug, quantity: 2, price: "1000.00" }] })
     );
-    current = (await catalog.getProducts()).find((x) => x.id === p.id)!;
+
+    await catalog.updateProduct(p.id, {
+      name: p.name,
+      description: p.description,
+      price: "9999.00",
+      regularPrice: "9999.00",
+      onSale: false,
+      inStock: true,
+      categorySlugs: [],
+    });
+
+    await POST(jsonRequest(URL, { body: verifyBody() }));
+
+    const [stored] = await orderStore.getAllOrders();
+    expect(stored.items[0].price).toBe("1000.00");
+    expect(stored.amount).toBe(2150);
+  });
+
+  it("still records a paid order if the product was deleted after checkout began", async () => {
+    const p = await trackedProduct(undefined);
+    await pendingStore.savePendingOrder(
+      pendingOrder({ items: [{ productId: p.id, name: p.name, slug: p.slug, quantity: 1, price: "1000.00" }] })
+    );
+    await catalog.deleteProduct(p.id);
+
+    const response = await POST(jsonRequest(URL, { body: verifyBody() }));
+
+    expect(response.status).toBe(200);
+    expect(await orderStore.getAllOrders()).toHaveLength(1);
+  });
+
+  it("still records a paid order if stock ran out in the meantime, clamping stock at zero", async () => {
+    const p = await trackedProduct(1);
+    await pendingStore.savePendingOrder(
+      pendingOrder({ items: [{ productId: p.id, name: p.name, slug: p.slug, quantity: 3, price: "1000.00" }] })
+    );
+
+    const response = await POST(jsonRequest(URL, { body: verifyBody() }));
+
+    expect(response.status).toBe(200);
+    expect(await orderStore.getAllOrders()).toHaveLength(1);
+    const current = (await catalog.getProducts()).find((x) => x.id === p.id)!;
     expect(current.stockQuantity).toBe(0);
     expect(current.inStock).toBe(false);
   });
 
-  it("leaves untracked products' stock fields alone", async () => {
-    const p = await catalog.createProduct(product());
+  it("decrements tracked stock, flipping inStock off at zero", async () => {
+    const p = await trackedProduct(3);
+    const line = (quantity: number) => [
+      { productId: p.id, name: p.name, slug: p.slug, quantity, price: "1000.00" },
+    ];
+    await pendingStore.savePendingOrder(pendingOrder({ razorpayOrderId: "order_a", items: line(2) }));
+    await pendingStore.savePendingOrder(pendingOrder({ razorpayOrderId: "order_b", items: line(1) }));
 
-    await POST(
-      jsonRequest(URL, { body: verifyBody({ items: [{ productId: p.id, quantity: 1 }] }) })
+    await POST(jsonRequest(URL, { body: verifyBody("order_a", "pay_a") }));
+    let current = (await catalog.getProducts()).find((x) => x.id === p.id)!;
+    expect(current).toMatchObject({ stockQuantity: 1, inStock: true });
+
+    await POST(jsonRequest(URL, { body: verifyBody("order_b", "pay_b") }));
+    current = (await catalog.getProducts()).find((x) => x.id === p.id)!;
+    expect(current).toMatchObject({ stockQuantity: 0, inStock: false });
+  });
+
+  it("leaves untracked products' stock fields alone", async () => {
+    const p = await trackedProduct(undefined);
+    await pendingStore.savePendingOrder(
+      pendingOrder({ items: [{ productId: p.id, name: p.name, slug: p.slug, quantity: 1, price: "1000.00" }] })
     );
+
+    await POST(jsonRequest(URL, { body: verifyBody() }));
 
     const current = (await catalog.getProducts()).find((x) => x.id === p.id)!;
     expect(current.stockQuantity).toBeUndefined();
     expect(current.inStock).toBe(true);
   });
 
-  it("is idempotent: replaying the same payment stores one order and decrements once", async () => {
-    const p = await catalog.createProduct(product({ stockQuantity: 5 }));
-    const body = verifyBody({ items: [{ productId: p.id, quantity: 2 }] });
+  it("removes the snapshot once the order is recorded", async () => {
+    await pendingStore.savePendingOrder(pendingOrder());
+    await POST(jsonRequest(URL, { body: verifyBody() }));
+    expect(await pendingStore.getPendingOrder("order_1")).toBeUndefined();
+  });
 
-    const first = await POST(jsonRequest(URL, { body }));
-    const second = await POST(jsonRequest(URL, { body }));
+  it("is idempotent: replays record one order, decrement once, email once", async () => {
+    const p = await trackedProduct(5);
+    await pendingStore.savePendingOrder(
+      pendingOrder({ items: [{ productId: p.id, name: p.name, slug: p.slug, quantity: 2, price: "1000.00" }] })
+    );
+
+    const first = await POST(jsonRequest(URL, { body: verifyBody() }));
+    const second = await POST(jsonRequest(URL, { body: verifyBody() }));
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(await orderStore.getAllOrders()).toHaveLength(1);
     expect((await catalog.getProducts()).find((x) => x.id === p.id)?.stockQuantity).toBe(3);
-  });
-
-  it("sends the customer a confirmation, once, even if the payment is replayed", async () => {
-    const p = await catalog.createProduct(product());
-    const body = verifyBody({ items: [{ productId: p.id, quantity: 1 }] });
-
-    await POST(jsonRequest(URL, { body }));
-    await POST(jsonRequest(URL, { body }));
-
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "jane@example.com",
-        subject: expect.stringContaining("confirmed"),
-      })
+      expect.objectContaining({ to: "jane@example.com", subject: expect.stringContaining("confirmed") })
     );
   });
 
-  it("skips the customer email when the address is invalid, but still stores the order", async () => {
-    const p = await catalog.createProduct(product());
-
-    const response = await POST(
-      jsonRequest(URL, {
-        body: verifyBody({ email: "not-an-email", items: [{ productId: p.id, quantity: 1 }] }),
-      })
+  it("only ever uses the snapshot belonging to the paid Razorpay order", async () => {
+    await pendingStore.savePendingOrder(pendingOrder({ razorpayOrderId: "order_1" }));
+    await pendingStore.savePendingOrder(
+      pendingOrder({ razorpayOrderId: "order_2", customerEmail: "other@example.com", amount: 999 })
     );
+
+    await POST(jsonRequest(URL, { body: verifyBody("order_2", "pay_2") }));
+
+    const [stored] = await orderStore.getAllOrders();
+    expect(stored.razorpayOrderId).toBe("order_2");
+    expect(stored.customerEmail).toBe("other@example.com");
+    expect(await pendingStore.getPendingOrder("order_1")).toBeDefined();
+  });
+
+  it("skips the customer email when the snapshotted address is invalid, but still records the order", async () => {
+    await pendingStore.savePendingOrder(pendingOrder({ customerEmail: "not-an-email" }));
+
+    const response = await POST(jsonRequest(URL, { body: verifyBody() }));
 
     expect(response.status).toBe(200);
     expect(sendEmail).not.toHaveBeenCalled();
@@ -245,50 +330,64 @@ describe("POST /api/checkout/verify-payment — a genuine payment", () => {
 
   it("still reports success when the email provider fails", async () => {
     sendEmail.mockResolvedValue(false);
-    const p = await catalog.createProduct(product());
+    await pendingStore.savePendingOrder(pendingOrder());
+
+    const response = await POST(jsonRequest(URL, { body: verifyBody() }));
+
+    expect(response.status).toBe(200);
+    expect(await orderStore.getAllOrders()).toHaveLength(1);
+  });
+
+  it("a stock-decrement failure doesn't stop the order being recorded or the customer being emailed", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await pendingStore.savePendingOrder(pendingOrder());
+    // Make the catalogue unreadable so decrementStock throws.
+    mkdirSync(path.join(process.cwd(), "storage", "catalog.json"), { recursive: true });
+
+    const response = await POST(jsonRequest(URL, { body: verifyBody() }));
+
+    expect(response.status).toBe(200);
+    expect(await orderStore.getAllOrders()).toHaveLength(1);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Stock decrement failed"),
+      expect.anything()
+    );
+  });
+});
+
+describe("POST /api/checkout/verify-payment — a genuine payment with no snapshot", () => {
+  beforeEach(() => setup());
+
+  it("confirms the payment but invents no order, and flags it for reconciliation", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await POST(
-      jsonRequest(URL, { body: verifyBody({ items: [{ productId: p.id, quantity: 1 }] }) })
+      jsonRequest(URL, {
+        body: {
+          ...verifyBody(),
+          // A browser-supplied cart must NOT be used to fabricate an order.
+          items: [{ productId: 1, quantity: 1 }],
+          address,
+          email: "jane@example.com",
+        },
+      })
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ verified: true, orderId: "order_1" });
-    expect(await orderStore.getAllOrders()).toHaveLength(1);
-  });
-
-  it("verifies but records nothing when no items/address accompany the payment", async () => {
-    const response = await POST(jsonRequest(URL, { body: verifyBody({}) }));
-
-    expect(response.status).toBe(200);
     expect(await orderStore.getAllOrders()).toHaveLength(0);
-  });
-
-  // Characterization of a known limitation (see the Day 12 report): the
-  // payment signature is already proven valid, so the endpoint reports
-  // success even if the order can no longer be priced at verify time
-  // (e.g. the item sold out in between). The order is NOT recorded.
-  it("[known limitation] reports success but records no order if the item can't be priced at verify time", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const p = await catalog.createProduct(product({ stockQuantity: 1 }));
-
-    const response = await POST(
-      jsonRequest(URL, { body: verifyBody({ items: [{ productId: p.id, quantity: 5 }] }) })
-    );
-
-    expect(response.status).toBe(200);
-    expect(await orderStore.getAllOrders()).toHaveLength(0);
-    errorSpy.mockRestore();
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("RECONCILE"));
   });
 });
 
 describe("POST /api/checkout/verify-payment — admin new-order alert", () => {
   it("also emails the owner when an admin notification address is configured", async () => {
     await setup({ adminEmail: "owner@example.com" });
-    const p = await catalog.createProduct(product());
+    await pendingStore.savePendingOrder(pendingOrder());
 
-    await POST(
-      jsonRequest(URL, { body: verifyBody({ items: [{ productId: p.id, quantity: 1 }] }) })
-    );
+    await POST(jsonRequest(URL, { body: verifyBody() }));
 
     const recipients = sendEmail.mock.calls.map(([arg]) => arg.to);
     expect(recipients).toContain("jane@example.com");
@@ -297,13 +396,10 @@ describe("POST /api/checkout/verify-payment — admin new-order alert", () => {
 
   it("does not email the owner when no admin address is configured", async () => {
     await setup();
-    const p = await catalog.createProduct(product());
+    await pendingStore.savePendingOrder(pendingOrder());
 
-    await POST(
-      jsonRequest(URL, { body: verifyBody({ items: [{ productId: p.id, quantity: 1 }] }) })
-    );
+    await POST(jsonRequest(URL, { body: verifyBody() }));
 
-    const recipients = sendEmail.mock.calls.map(([arg]) => arg.to);
-    expect(recipients).toEqual(["jane@example.com"]);
+    expect(sendEmail.mock.calls.map(([arg]) => arg.to)).toEqual(["jane@example.com"]);
   });
 });

@@ -2,45 +2,34 @@ import { NextResponse } from "next/server";
 import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { getRazorpayClient } from "@/lib/razorpay/client";
 import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
+import { sanitizeAddress } from "@/lib/checkout/address";
+import { savePendingOrder } from "@/lib/orders/pendingStore";
 import { isValidEmail } from "@/lib/utils/email";
-import type { Address } from "@/types/catalog";
-
-type CreateOrderRequestItem = {
-  productId: number;
-  quantity: number;
-};
 
 type CreateOrderRequestBody = {
-  items: CreateOrderRequestItem[];
-  address: Address;
-  email?: string;
+  items?: unknown;
+  address?: unknown;
+  email?: unknown;
 };
 
-function isAddress(value: unknown): value is Address {
-  if (!value || typeof value !== "object") return false;
-  const address = value as Record<string, unknown>;
+function isItemList(value: unknown): value is { productId: number; quantity: number }[] {
   return (
-    typeof address.fullName === "string" &&
-    address.fullName.trim().length > 0 &&
-    typeof address.line1 === "string" &&
-    address.line1.trim().length > 0 &&
-    typeof address.city === "string" &&
-    address.city.trim().length > 0 &&
-    typeof address.state === "string" &&
-    address.state.trim().length > 0 &&
-    typeof address.postalCode === "string" &&
-    address.postalCode.trim().length > 0 &&
-    typeof address.country === "string" &&
-    address.country.trim().length > 0
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => item !== null && typeof item === "object")
   );
 }
 
+/**
+ * Prices the cart from the catalogue, creates the Razorpay order, and
+ * saves a snapshot of exactly what was priced and charged. The snapshot
+ * — not anything the browser says later — is what verify-payment
+ * records, so the snapshot is saved BEFORE the browser is handed an
+ * order it could pay for. If it can't be saved, no payment can start.
+ */
 export async function POST(request: Request) {
   if (!isRazorpayConfigured()) {
-    return NextResponse.json(
-      { error: "payment_not_configured" },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: "payment_not_configured" }, { status: 503 });
   }
 
   let body: CreateOrderRequestBody;
@@ -50,15 +39,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  if (!Array.isArray(body.items) || body.items.length === 0) {
+  if (!isItemList(body?.items)) {
     return NextResponse.json({ error: "empty_cart" }, { status: 400 });
   }
-  if (!isAddress(body.address)) {
+  const address = sanitizeAddress(body.address);
+  if (!address) {
     return NextResponse.json({ error: "invalid_address" }, { status: 400 });
   }
   if (!isValidEmail(body.email)) {
     return NextResponse.json({ error: "invalid_email" }, { status: 400 });
   }
+  const email = body.email;
 
   let totals;
   try {
@@ -75,30 +66,47 @@ export async function POST(request: Request) {
 
   const amountInPaise = Math.round(totals.amountInRupees * 100);
 
+  let order;
   try {
     const razorpay = getRazorpayClient();
-    const order = await razorpay.orders.create({
+    order = await razorpay.orders.create({
       amount: amountInPaise,
       currency: "INR",
       notes: {
-        customerName: body.address.fullName,
-        city: body.address.city,
+        customerName: address.fullName,
+        city: address.city,
       },
-    });
-
-    return NextResponse.json({
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      itemsSubtotal: totals.itemsSubtotalInRupees,
-      shipping: totals.shippingInRupees,
     });
   } catch (error) {
     console.error("[checkout] Razorpay order creation failed:", error);
-    return NextResponse.json(
-      { error: "order_creation_failed" },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: "order_creation_failed" }, { status: 502 });
   }
+
+  try {
+    await savePendingOrder({
+      razorpayOrderId: order.id,
+      items: totals.lineItems,
+      itemsSubtotal: totals.itemsSubtotalInRupees,
+      shipping: totals.shippingInRupees,
+      amount: totals.amountInRupees,
+      amountInPaise,
+      customerEmail: email,
+      address,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    // The Razorpay order exists but was never handed to the browser, so
+    // it can't be paid — safe to abandon.
+    console.error("[checkout] Could not save order snapshot:", error);
+    return NextResponse.json({ error: "order_snapshot_failed" }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    itemsSubtotal: totals.itemsSubtotalInRupees,
+    shipping: totals.shippingInRupees,
+  });
 }
