@@ -77,6 +77,12 @@ export async function getCustomerByEmail(email: string): Promise<CustomerAccount
   return res.rows[0] ? toAccount(res.rows[0]) : undefined;
 }
 
+export async function getCustomerById(id: number): Promise<CustomerAccount | undefined> {
+  const db = await getDb();
+  const res = await db.query<CustomerRow>("SELECT * FROM customers WHERE id = $1", [id]);
+  return res.rows[0] ? toAccount(res.rows[0]) : undefined;
+}
+
 // ---- sessions -------------------------------------------------------
 
 /** Returns the raw token (goes in the cookie); only its hash is stored. */

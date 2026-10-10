@@ -13,7 +13,10 @@ export const ORDER_STATUSES = [
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export type StoredOrder = {
+  /** Internal id (UUID). Unguessable; used as the secret-ish "order reference" for lookups. */
   id: string;
+  /** Friendly sequential number (1001, 1002…), shown as SK-1001. */
+  orderNumber: number;
   razorpayOrderId: string;
   razorpayPaymentId: string;
   /** Items subtotal before shipping. */
@@ -28,7 +31,23 @@ export type StoredOrder = {
   address: Address;
   items: PricedLineItem[];
   status: OrderStatus;
+  /** e.g. "upi", "card" — from Razorpay, when known. */
+  paymentMethod?: string;
   trackingNumber?: string;
   carrier?: string;
   createdAt: string;
 };
+
+/** What goes in the order number slot of subjects, PDFs and the UI. */
+export function formatOrderNumber(orderNumber: number): string {
+  return `SK-${orderNumber}`;
+}
+
+/** Accepts "SK-1001", "sk1001" or "1001"; returns the number or null. */
+export function parseOrderNumber(reference: string): number | null {
+  const match = /^\s*(?:sk[-\s]?)?(\d{1,9})\s*$/i.exec(reference);
+  return match ? Number(match[1]) : null;
+}
+
+/** Fields the database assigns itself. */
+export type NewOrder = Omit<StoredOrder, "orderNumber">;

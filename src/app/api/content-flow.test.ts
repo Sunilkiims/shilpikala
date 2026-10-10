@@ -36,8 +36,11 @@ describe("POST /api/inquiries", () => {
     const all = await store.listInquiries();
     expect(all).toHaveLength(1);
     expect(all[0]).toMatchObject({ kind: "contact", status: "new", email: "asha@example.com" });
-    expect(sendEmail).toHaveBeenCalledTimes(1);
+    // The owner is alerted, and the sender gets a confirmation receipt.
+    expect(sendEmail).toHaveBeenCalledTimes(2);
     expect(sendEmail.mock.calls[0][0].to).toBe("owner@example.com");
+    expect(sendEmail.mock.calls[1][0].to).toBe("asha@example.com");
+    expect(sendEmail.mock.calls[1][0].text).toContain("Asha");
   });
 
   it("escapes HTML in the owner alert (no markup injection)", async () => {

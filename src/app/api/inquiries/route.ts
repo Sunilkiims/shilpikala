@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { limitAttempts, readJson } from "@/lib/auth/guard";
-import { emailConfig, isAdminNotificationConfigured } from "@/lib/email/config";
-import { sendEmail } from "@/lib/email/send";
-import { inquiryAlertEmail } from "@/lib/email/templates";
+import { emailConfig, isAdminNotificationConfigured, senderFor } from "@/lib/email/config";
+import { deliver } from "@/lib/email/outbox";
+import { inquiryAlertEmail, inquiryReceiptEmail } from "@/lib/email/templates";
+import { isValidEmail } from "@/lib/utils/email";
 import { createInquiry, type InquiryKind } from "@/lib/inquiries/store";
 import { validateInquiry } from "@/lib/inquiries/validation";
 
@@ -39,7 +40,24 @@ export async function POST(request: Request) {
       subject: inquiry.subject,
       message: inquiry.message + detailLines,
     });
-    await sendEmail({ to: emailConfig.adminNotificationEmail, ...mail });
+    await deliver({
+      kind: "inquiry-admin",
+      key: `inquiry-admin:${inquiry.id}`,
+      to: emailConfig.adminNotificationEmail,
+      from: senderFor("general"),
+      ...mail,
+    }).catch((error) => console.error("[email] Inquiry alert failed:", error));
+  }
+
+  // Confirmation to the person who wrote in (contact + custom-art requests).
+  if (isValidEmail(inquiry.email)) {
+    await deliver({
+      kind: "inquiry-receipt",
+      key: `inquiry-receipt:${inquiry.id}`,
+      to: inquiry.email,
+      from: senderFor("general"),
+      ...inquiryReceiptEmail({ kind: inquiry.kind, name: inquiry.name, message: inquiry.message }),
+    }).catch((error) => console.error("[email] Inquiry receipt failed:", error));
   }
 
   return NextResponse.json({ received: true }, { status: 201 });

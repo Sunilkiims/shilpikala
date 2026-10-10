@@ -4,8 +4,10 @@ import { limitAttempts, readJson } from "@/lib/auth/guard";
 import { sessionCookieHeader } from "@/lib/auth/session";
 import { cleanEmail, cleanName, validatePassword } from "@/lib/auth/validation";
 import { emailLink } from "@/lib/config/emailLinks";
-import { sendEmail } from "@/lib/email/send";
-import { verifyEmailEmail } from "@/lib/email/templates";
+import { randomUUID } from "node:crypto";
+import { senderFor } from "@/lib/email/config";
+import { deliver } from "@/lib/email/outbox";
+import { verifyEmailEmail, welcomeEmail } from "@/lib/email/templates";
 
 export async function POST(request: Request) {
   const limited = limitAttempts(request, "register", 10, 60 * 60 * 1000);
@@ -28,8 +30,28 @@ export async function POST(request: Request) {
 
   const verifyToken = await createAuthToken(customer.id, "verify-email");
   const url = emailLink(`/account/verify-email?token=${verifyToken}`);
-  const mail = verifyEmailEmail(customer.name, url);
-  await sendEmail({ to: customer.email, ...mail });
+  // Account emails come from the general sender. They are best-effort:
+  // a mail problem must never block registration (deliver never throws
+  // for send failures; the catch covers unexpected database errors).
+  const from = senderFor("general");
+  await Promise.all([
+    deliver({
+      kind: "welcome",
+      key: `welcome:${customer.id}`,
+      to: customer.email,
+      from,
+      ...welcomeEmail(customer.name, emailLink("/shop")),
+      customerId: customer.id,
+    }),
+    deliver({
+      kind: "verify-email",
+      key: `verify-email:${customer.id}:${randomUUID()}`,
+      to: customer.email,
+      from,
+      ...verifyEmailEmail(customer.name, url),
+      customerId: customer.id,
+    }),
+  ]).catch((error) => console.error("[email] Registration emails failed:", error));
 
   const session = await createSession(customer.id);
   const response = NextResponse.json({ customer }, { status: 201 });

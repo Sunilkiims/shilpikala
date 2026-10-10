@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getOrderById } from "@/lib/orders/store";
+import { getOrderByReference } from "@/lib/orders/store";
 import {
   appendReview,
   hasReviewForOrderAndProduct,
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   }
   const { orderId, email, productId, rating, content, authorName } = parsed.value;
 
-  const order = await getOrderById(orderId);
+  const order = await getOrderByReference(orderId);
   const verified =
     order &&
     order.customerEmail.toLowerCase() === email.toLowerCase() &&

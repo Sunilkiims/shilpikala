@@ -146,4 +146,47 @@ CREATE TABLE blog_posts (
 );
 `,
   },
+  {
+    id: "002_email_invoices",
+    sql: `
+ALTER TABLE orders ADD COLUMN payment_method TEXT;
+
+-- Short, human-friendly order number shown to customers (SK-1001, SK-1002…).
+CREATE SEQUENCE order_number_seq START 1001;
+ALTER TABLE orders ADD COLUMN order_number INTEGER UNIQUE DEFAULT nextval('order_number_seq');
+
+CREATE TABLE invoice_counters (
+  fiscal_year TEXT PRIMARY KEY,
+  last INTEGER NOT NULL
+);
+
+CREATE TABLE invoices (
+  id SERIAL PRIMARY KEY,
+  order_id TEXT NOT NULL UNIQUE REFERENCES orders(id) ON DELETE RESTRICT,
+  invoice_number TEXT NOT NULL UNIQUE,
+  fiscal_year TEXT NOT NULL,
+  issued_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE email_log (
+  id SERIAL PRIMARY KEY,
+  kind TEXT NOT NULL,
+  dedupe_key TEXT NOT NULL UNIQUE,
+  to_email TEXT NOT NULL,
+  from_email TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  provider_id TEXT,
+  order_id TEXT,
+  customer_id INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  sent_at TIMESTAMPTZ
+);
+CREATE INDEX email_log_status_idx ON email_log(status, updated_at);
+CREATE INDEX email_log_order_idx ON email_log(order_id);
+`,
+  },
 ];

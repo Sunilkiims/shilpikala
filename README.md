@@ -102,9 +102,50 @@ It replaces the demo catalogue with yours (keeping product ids), imports photos,
 
 > The payment round trip against Razorpay's real servers can only be tested with your own keys; see the testing notes in the delivery report.
 
-## 5. Email (Resend)
+## 5. Email, invoices and the Razorpay webhook
 
-Create a Resend account, verify a sending domain, then set `RESEND_API_KEY` and `EMAIL_FROM` (an address on that domain). Email is best-effort: a send failure is logged and never fails a checkout or sign-up.
+### 5.1 What is sent, and from where
+
+| Email | From | To |
+|---|---|---|
+| Password reset, "password changed" notice | `EMAIL_RESET_FROM` (`reset@shilpikala.com`) | customer |
+| Welcome, email verification, contact / custom-art confirmation | `EMAIL_GENERAL_FROM` (`hello@shilpikala.com`) | customer |
+| **Order Confirmed – ShilpiKala \| Order #SK-1001** + PDF invoice | `ShilpiKala <invoice@shilpikala.com>` | customer |
+| **New Order Received – #SK-1001** + the same PDF invoice | `ShilpiKala Orders <invoice@shilpikala.com>` | `ADMIN_EMAIL` |
+| Shipped / cancelled / refunded notices | `EMAIL_INVOICE_FROM` | customer |
+| New inquiry alert | `EMAIL_GENERAL_FROM` | `ADMIN_EMAIL` |
+
+Provider: **Resend** (kept - it was already integrated, is a proper transactional provider, supports attachments and idempotency keys). The API key lives only in `RESEND_API_KEY` (server-side). Every email is HTML + plain text.
+
+### 5.2 Provider and DNS setup (you must do this)
+
+1. In Resend, **add and verify every domain you send from**. Only `shilpikala.com` is needed - all three senders (`reset@`, `hello@`, `invoice@`) are on it.
+2. For each domain, add the DNS records Resend shows you:
+   - **SPF** - a `TXT` record (Resend gives you the exact value, usually on a `send.` subdomain) so Resend may send for you.
+   - **DKIM** - the `TXT`/`CNAME` record(s) Resend gives you, which cryptographically sign your mail.
+   - **DMARC** - a `TXT` record at `_dmarc.<domain>`. Start with `v=DMARC1; p=none; rua=mailto:you@yourdomain` to watch reports, then tighten to `quarantine`/`reject` once SPF and DKIM pass.
+3. Wait until Resend shows each domain as **Verified**. Until then Resend only delivers to your own account email.
+4. Create an API key in Resend and set it as `RESEND_API_KEY`.
+5. Set `ADMIN_EMAIL` (where order alerts go), `SITE_URL` (your real URL) and optionally `EMAIL_LOGO_URL`.
+
+
+### 5.3 Orders, payments and duplicate protection
+
+- An order (and its emails) is created **only** after a verified payment: a valid Razorpay signature on `/api/checkout/verify-payment`, **or** a signed `payment.captured` / `order.paid` webhook. Reaching the "success" page alone does nothing. Failed or cancelled payments create no order and send nothing.
+- Both paths share one function (`src/lib/orders/finalize.ts`) and are idempotent: webhook retries, refreshes, double-clicks and the browser racing the webhook produce **one** order, **one** stock decrement and **each email once**.
+- Every email goes through an outbox (`email_log` table, **Admin -> Emails**) that claims a unique key per email before sending and records status, attempts and the last error. No message bodies are stored.
+- The order is committed **before** any email is attempted, and email errors never surface to the payment flow, so a mail problem cannot turn a paid order into a failed one. The customer and admin emails are attempted independently.
+- Failed order emails are retried: automatically up to 5 times per email whenever the order is touched again, via **Admin -> Emails -> Retry** (button per email or "Retry unsent order emails"), and, optionally, from a scheduler calling `/api/cron/retry-emails` (needs `CRON_SECRET`).
+- Refunds: issue them in the Razorpay dashboard. The `refund.processed` webhook then marks the order *refunded* and emails the customer once. Admins can also set *cancelled/refunded* in **Admin -> Orders**, which sends the matching notice once.
+
+**Razorpay webhook setup:** Dashboard -> Settings -> Webhooks -> add `https://<your-domain>/api/webhooks/razorpay`, choose a secret, put it in `RAZORPAY_WEBHOOK_SECRET`, and enable `payment.captured`, `order.paid`, `refund.processed`, `payment.failed`. Without the secret the endpoint answers 503 and the browser-verify path still works.
+
+### 5.4 PDF invoices
+
+- Generated server-side with `pdfkit` from the **stored order** (the same figures the customer paid). Numbers are sequential and gap-free per Indian financial year: `SK/2026-27/00001`.
+- Attached to both emails; also re-generated on demand (identical numbers) from the account page, the track-order page and Admin -> Orders. There are no public invoice URLs: a signed-in customer can only fetch their own orders (others get 404), guests need order number **and** matching email (rate limited), admin routes sit behind the admin login.
+- Seller details come from `BUSINESS_*`. **GST is shown only if `BUSINESS_GSTIN` is a valid GSTIN and `GST_RATE_PERCENT` is set**; nothing is invented. Prices are assumed to be GST-inclusive; intra-state sales show CGST+SGST, inter-state IGST. Have your accountant confirm this before you rely on it as a tax invoice.
+- The PDF uses the built-in Latin fonts, so non-Latin characters in names/addresses print as `?` on the PDF (the HTML emails show them correctly).
 
 ## 6. Admin
 

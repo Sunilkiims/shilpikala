@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   // Loaded from node_modules at runtime instead of being bundled: PGlite
   // locates its WASM files relative to its own package, and `pg` has
   // optional native bindings.
-  serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  serverExternalPackages: ["@electric-sql/pglite", "pg", "pdfkit"],
 
   async headers() {
     return [

@@ -6,6 +6,7 @@ import { LogoutButton, SignInRegister } from "@/components/account/AuthForms";
 import { ProfileForm } from "@/components/account/ProfileForm";
 import { getCurrentCustomer } from "@/lib/auth/session";
 import { getOrdersForAccount } from "@/lib/orders/store";
+import { formatOrderNumber } from "@/lib/orders/types";
 import { formatPrice } from "@/lib/utils/currency";
 
 export const metadata: Metadata = {
@@ -91,7 +92,17 @@ export default async function AccountPage() {
                     {order.carrier ? `${order.carrier} · ` : ""}Tracking: {order.trackingNumber}
                   </p>
                 )}
-                <p className="mt-1 text-xs text-earth-brown/70">Reference: {order.id}</p>
+                <p className="mt-1 text-xs text-earth-brown/70">
+                  Order {formatOrderNumber(order.orderNumber)} · Reference: {order.id}
+                </p>
+                <p className="mt-2 text-sm">
+                  <a
+                    href={`/api/account/orders/${order.id}/invoice`}
+                    className="text-terracotta underline underline-offset-2 hover:text-terracotta-deep"
+                  >
+                    Download invoice (PDF)
+                  </a>
+                </p>
               </li>
             ))}
           </ul>

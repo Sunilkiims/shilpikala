@@ -1,6 +1,16 @@
 import type { StoredOrder } from "@/lib/orders/types";
-import { formatPrice } from "@/lib/utils/currency";
+import { formatOrderNumber } from "@/lib/orders/types";
 import { siteConfig } from "@/lib/config/site";
+import { computeInvoiceTotals, rupees, type InvoiceTotals } from "@/lib/invoices/totals";
+import { getBusinessProfile } from "@/lib/invoices/business";
+
+/**
+ * Branded, responsive, table-based HTML emails (with plain-text twins).
+ * Palette follows the site: warm parchment, terracotta, deep ink —
+ * with a small mandala motif as the brand mark.
+ */
+
+export type Rendered = { subject: string; html: string; text: string };
 
 export function escapeHtml(value: string): string {
   return value
@@ -10,148 +20,365 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function itemsTable(order: StoredOrder): string {
-  const rows = order.items
-    .map(
-      (item) => `
-        <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #e5ddd0;">${escapeHtml(item.name)} × ${item.quantity}</td>
-          <td style="padding:8px 0;border-bottom:1px solid #e5ddd0;text-align:right;">${formatPrice(String(Number(item.price) * item.quantity))}</td>
-        </tr>`
-    )
-    .join("");
+const C = {
+  paper: "#f6f0e6",
+  card: "#fffdf9",
+  ink: "#24211e",
+  brown: "#4a3027",
+  muted: "#6b5d50",
+  terracotta: "#a65335",
+  line: "#e5ddd0",
+};
+const SERIF = "Georgia,'Times New Roman',serif";
+const SANS = "-apple-system,'Segoe UI',Helvetica,Arial,sans-serif";
 
-  return `
-    <table style="width:100%;border-collapse:collapse;font-size:14px;color:#24211e;">
-      ${rows}
-      <tr>
-        <td style="padding:8px 0;">Subtotal</td>
-        <td style="padding:8px 0;text-align:right;">${formatPrice(String(order.itemsSubtotal))}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;">Shipping</td>
-        <td style="padding:8px 0;text-align:right;">${order.shipping === 0 ? "Free" : formatPrice(String(order.shipping))}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;font-weight:bold;border-top:1px solid #24211e;">Total</td>
-        <td style="padding:8px 0;text-align:right;font-weight:bold;border-top:1px solid #24211e;">${formatPrice(String(order.amount))}</td>
-      </tr>
-    </table>`;
+const supportLine = () => {
+  const b = getBusinessProfile();
+  return `${b.email}${b.phone ? ` · ${b.phone}` : ""}`;
+};
+
+function logoBlock(): string {
+  const logoUrl = process.env.EMAIL_LOGO_URL?.trim();
+  if (logoUrl) {
+    return `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(siteConfig.name)}" height="48" style="height:48px;display:block;margin:0 auto;border:0;">`;
+  }
+  return `<div style="font-size:26px;line-height:1;color:${C.terracotta};letter-spacing:6px;">✺</div>
+    <div style="font-family:${SERIF};font-size:28px;color:${C.terracotta};margin-top:6px;">${escapeHtml(siteConfig.name)}</div>`;
 }
 
-export function baseLayout(bodyHtml: string): string {
-  return `
-    <div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-      <p style="font-family:Georgia,serif;font-size:18px;color:#a65335;margin:0 0 16px;">${escapeHtml(siteConfig.name)}</p>
-      ${bodyHtml}
-    </div>`;
+export function layout(opts: { preheader: string; heading: string; body: string; footerNote?: string }): string {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>${escapeHtml(opts.heading)}</title></head>
+<body style="margin:0;padding:0;background:${C.paper};">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${C.paper};"><tr><td align="center" style="padding:24px 12px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:${C.card};border:1px solid ${C.line};">
+    <tr><td align="center" style="padding:28px 24px 18px;border-bottom:3px double ${C.terracotta};text-align:center;">
+      ${logoBlock()}
+      <div style="font-family:${SANS};font-size:11px;letter-spacing:3px;color:${C.muted};margin-top:8px;">${escapeHtml(siteConfig.tagline.toUpperCase())}</div>
+    </td></tr>
+    <tr><td style="padding:28px 28px 8px;font-family:${SANS};color:${C.ink};">
+      <h1 style="font-family:${SERIF};font-size:24px;font-weight:normal;color:${C.ink};margin:0 0 14px;">${escapeHtml(opts.heading)}</h1>
+      ${opts.body}
+    </td></tr>
+    <tr><td style="padding:20px 28px 28px;font-family:${SANS};font-size:12px;line-height:1.6;color:${C.muted};border-top:1px solid ${C.line};">
+      ${opts.footerNote ? `<p style="margin:0 0 8px;">${escapeHtml(opts.footerNote)}</p>` : ""}
+      <p style="margin:0;">Questions? Write to us at ${escapeHtml(supportLine())}.</p>
+      <p style="margin:8px 0 0;">${escapeHtml(siteConfig.name)} — handmade Mandala &amp; Lipan art.</p>
+    </td></tr>
+  </table>
+</td></tr></table></body></html>`;
 }
 
-export function orderConfirmationEmail(order: StoredOrder): {
-  subject: string;
-  html: string;
-} {
-  const html = baseLayout(`
-    <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">Thank you for your order</h1>
-    <p style="font-size:14px;color:#4a3027;line-height:1.6;margin:0 0 20px;">
-      Hi ${escapeHtml(order.address.fullName)}, we've received your order and payment. Here's a summary:
-    </p>
-    ${itemsTable(order)}
-    <p style="font-size:13px;color:#4a3027;line-height:1.6;margin:20px 0 0;">
-      Shipping to: ${escapeHtml(order.address.line1)}, ${escapeHtml(order.address.city)}, ${escapeHtml(order.address.state)} ${escapeHtml(order.address.postalCode)}
-    </p>
-    <p style="font-size:12px;color:#7a6c5d;margin:20px 0 0;">Order reference: ${escapeHtml(order.id)}</p>
-  `);
+const p = (html: string) => `<p style="font-size:15px;line-height:1.65;color:${C.brown};margin:0 0 16px;">${html}</p>`;
 
+function button(label: string, url: string): string {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:6px 0 20px;"><tr>
+    <td style="background:${C.terracotta};border-radius:2px;">
+      <a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 26px;font-family:${SANS};font-size:15px;color:#ffffff;text-decoration:none;">${escapeHtml(label)}</a>
+    </td></tr></table>`;
+}
+
+const linkFallback = (url: string) =>
+  `<p style="font-size:12px;line-height:1.6;color:${C.muted};margin:0 0 16px;word-break:break-all;">If the button doesn't work, copy this link into your browser:<br><a href="${escapeHtml(url)}" style="color:${C.terracotta};">${escapeHtml(url)}</a></p>`;
+
+// --- Account emails ---------------------------------------------------
+
+export function welcomeEmail(name: string, shopUrl: string): Rendered {
+  const body = `${p(`Hi ${escapeHtml(name)}, welcome to ${escapeHtml(siteConfig.name)} — we're delighted to have you.`)}
+    ${p("Every piece in our studio is made by hand: Mandala art, Lipan art and one-of-a-kind creations rooted in Indian tradition. Take your time, explore, and reach out any time if you'd like something made just for you.")}
+    ${button("Explore the collection", shopUrl)}`;
   return {
-    subject: `Your ${siteConfig.name} order is confirmed`,
-    html,
+    subject: `Welcome to ${siteConfig.name}`,
+    html: layout({ preheader: "Your account is ready.", heading: `Welcome, ${name}`, body }),
+    text: `Hi ${name},\n\nWelcome to ${siteConfig.name}! Every piece in our studio is made by hand.\n\nExplore the collection: ${shopUrl}\n\nQuestions? ${supportLine()}\n`,
   };
 }
 
-export function adminOrderAlertEmail(order: StoredOrder): {
+function actionEmail(o: {
   subject: string;
-  html: string;
-} {
-  const html = baseLayout(`
-    <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">New order</h1>
-    <p style="font-size:14px;color:#4a3027;line-height:1.6;margin:0 0 20px;">
-      ${escapeHtml(order.address.fullName)} (${escapeHtml(order.customerEmail)}) just paid for an order.
-    </p>
-    ${itemsTable(order)}
-    <p style="font-size:13px;color:#4a3027;line-height:1.6;margin:20px 0 0;">
-      Ship to: ${escapeHtml(order.address.line1)}, ${escapeHtml(order.address.city)}, ${escapeHtml(order.address.state)} ${escapeHtml(order.address.postalCode)}, ${escapeHtml(order.address.country)}
-      ${order.address.phone ? `· ${escapeHtml(order.address.phone)}` : ""}
-    </p>
-    <p style="font-size:12px;color:#7a6c5d;margin:20px 0 0;">
-      Order reference: ${escapeHtml(order.id)} · Razorpay: ${escapeHtml(order.razorpayPaymentId)}
-    </p>
-  `);
-
+  heading: string;
+  intro: string;
+  label: string;
+  url: string;
+  foot: string;
+  preheader: string;
+}): Rendered {
+  const body = `${p(escapeHtml(o.intro))}${button(o.label, o.url)}${linkFallback(o.url)}`;
   return {
-    subject: `New order from ${order.address.fullName}`,
-    html,
+    subject: o.subject,
+    html: layout({ preheader: o.preheader, heading: o.heading, body, footerNote: o.foot }),
+    text: `${o.heading}\n\n${o.intro}\n\n${o.label}: ${o.url}\n\n${o.foot}\n`,
   };
 }
 
-function actionEmail(heading: string, intro: string, buttonLabel: string, url: string, footnote: string) {
-  return baseLayout(`
-    <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">${escapeHtml(heading)}</h1>
-    <p style="font-size:14px;color:#4a3027;line-height:1.6;margin:0 0 20px;">${escapeHtml(intro)}</p>
-    <p style="margin:0 0 20px;"><a href="${escapeHtml(url)}" style="background:#a65335;color:#fff;padding:10px 20px;text-decoration:none;font-size:14px;">${escapeHtml(buttonLabel)}</a></p>
-    <p style="font-size:12px;color:#7a6c5d;line-height:1.6;margin:0;">${escapeHtml(footnote)}</p>
-  `);
-}
-
-export function verifyEmailEmail(name: string, url: string) {
-  return {
+export function verifyEmailEmail(name: string, url: string): Rendered {
+  return actionEmail({
     subject: `Confirm your ${siteConfig.name} email`,
-    html: actionEmail(
-      `Welcome, ${name}`,
-      "Please confirm your email address to finish setting up your account.",
-      "Confirm email",
-      url,
-      "This link expires in 3 days. If you didn't create an account, you can ignore this email."
-    ),
-  };
+    heading: `Confirm your email, ${name}`,
+    intro: "Please confirm your email address to finish setting up your account and to see your orders.",
+    label: "Confirm email",
+    url,
+    foot: "This link expires in 3 days. If you didn't create an account, you can ignore this email.",
+    preheader: "One quick step to finish setting up your account.",
+  });
 }
 
-export function passwordResetEmail(url: string) {
-  return {
+export function passwordResetEmail(url: string): Rendered {
+  return actionEmail({
     subject: `Reset your ${siteConfig.name} password`,
-    html: actionEmail(
-      "Reset your password",
-      "We received a request to reset your password. Use the button below to choose a new one.",
-      "Choose a new password",
-      url,
-      "This link expires in 1 hour and works once. If you didn't ask for this, you can ignore this email."
-    ),
-  };
+    heading: "Reset your password",
+    intro: "We received a request to reset your password. Use the button below to choose a new one.",
+    label: "Choose a new password",
+    url,
+    foot: "This link expires in 1 hour and works only once. If you didn't ask for this, you can safely ignore this email — your password won't change.",
+    preheader: "Use this link within the hour to choose a new password.",
+  });
 }
 
-export function orderShippedEmail(order: StoredOrder) {
-  const tracking = order.trackingNumber
-    ? `<p style="font-size:14px;color:#24211e;margin:0 0 12px;">${order.carrier ? `${escapeHtml(order.carrier)} · ` : ""}Tracking number: <strong>${escapeHtml(order.trackingNumber)}</strong></p>`
-    : "";
+export function passwordChangedEmail(): Rendered {
+  const body = p("The password for your account was just changed. If this was you, there's nothing more to do.") +
+    p("If it wasn't you, please reset your password immediately and contact us.");
   return {
-    subject: `Your ${siteConfig.name} order is on its way`,
-    html: baseLayout(`
-      <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">Your order has shipped</h1>
-      <p style="font-size:14px;color:#4a3027;line-height:1.6;margin:0 0 16px;">Hi ${escapeHtml(order.address.fullName)}, your order is on its way.</p>
-      ${tracking}
-      <p style="font-size:12px;color:#7a6c5d;margin:16px 0 0;">Order reference: ${escapeHtml(order.id)}</p>
-    `),
+    subject: `Your ${siteConfig.name} password was changed`,
+    html: layout({ preheader: "Your password was changed.", heading: "Your password was changed", body }),
+    text: `Your ${siteConfig.name} password was just changed.\n\nIf this wasn't you, reset your password right away and contact ${supportLine()}.\n`,
   };
 }
 
-export function inquiryAlertEmail(input: { kind: string; name: string; email: string; subject?: string; message: string }) {
+export function inquiryReceiptEmail(input: { kind: string; name: string; message: string }): Rendered {
+  const isCustom = /custom/i.test(input.kind);
+  const heading = isCustom ? "We've received your custom art request" : "We've received your message";
+  const body = `${p(`Hi ${escapeHtml(input.name)}, thank you for getting in touch. ${
+    isCustom
+      ? `Our artists will review your idea and reply personally — custom pieces usually take ${escapeHtml(siteConfig.business.customOrderLeadTime)} once confirmed.`
+      : "We'll reply within a couple of working days."
+  }`)}
+    <div style="border-left:3px solid ${C.terracotta};padding:4px 0 4px 14px;margin:0 0 16px;font-size:14px;line-height:1.6;color:${C.muted};white-space:pre-wrap;">${escapeHtml(input.message.slice(0, 600))}</div>`;
+  return {
+    subject: `${isCustom ? "Custom art request received" : "We got your message"} – ${siteConfig.name}`,
+    html: layout({ preheader: "Thank you — we'll be in touch soon.", heading, body }),
+    text: `Hi ${input.name},\n\n${heading}. We'll be in touch soon.\n\nYour message:\n${input.message.slice(0, 600)}\n\n${supportLine()}\n`,
+  };
+}
+
+export function inquiryAlertEmail(input: { kind: string; name: string; email: string; subject?: string; message: string }): Rendered {
+  const body = `${p(`${escapeHtml(input.name)} &lt;${escapeHtml(input.email)}&gt;`)}
+    ${input.subject ? p(`<strong>${escapeHtml(input.subject)}</strong>`) : ""}
+    <p style="font-size:14px;line-height:1.6;color:${C.ink};white-space:pre-wrap;margin:0 0 16px;">${escapeHtml(input.message)}</p>`;
   return {
     subject: `New ${input.kind} inquiry from ${input.name}`,
-    html: baseLayout(`
-      <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">New ${escapeHtml(input.kind)} inquiry</h1>
-      <p style="font-size:14px;color:#4a3027;margin:0 0 8px;">${escapeHtml(input.name)} &lt;${escapeHtml(input.email)}&gt;</p>
-      ${input.subject ? `<p style="font-size:14px;color:#24211e;margin:0 0 8px;"><strong>${escapeHtml(input.subject)}</strong></p>` : ""}
-      <p style="font-size:14px;color:#24211e;line-height:1.6;white-space:pre-wrap;margin:0;">${escapeHtml(input.message)}</p>
-    `),
+    html: layout({ preheader: `New ${input.kind} inquiry`, heading: `New ${input.kind} inquiry`, body }),
+    text: `New ${input.kind} inquiry\n${input.name} <${input.email}>\n${input.subject ? input.subject + "\n" : ""}\n${input.message}\n`,
+  };
+}
+
+// --- Order emails -----------------------------------------------------
+
+export type OrderEmailContext = {
+  order: StoredOrder;
+  invoiceNumber: string;
+  /** Absolute image URL per productId (only products that have one). */
+  images: Record<number, string>;
+  estimatedDelivery: string;
+  accountUrl: string;
+  adminUrl: string;
+};
+
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+
+const paymentLabel = (order: StoredOrder) =>
+  `Paid${order.paymentMethod ? ` via ${order.paymentMethod.toUpperCase()}` : ""}`;
+
+function addressHtml(order: StoredOrder): string {
+  const a = order.address;
+  return [a.fullName, a.line1, a.line2, `${a.city}, ${a.state} ${a.postalCode}`, a.country]
+    .filter(Boolean)
+    .map((l) => escapeHtml(l as string))
+    .join("<br>");
+}
+function addressText(order: StoredOrder): string {
+  const a = order.address;
+  return [a.fullName, a.line1, a.line2, `${a.city}, ${a.state} ${a.postalCode}`, a.country].filter(Boolean).join("\n");
+}
+
+function summaryTable(ctx: OrderEmailContext, totals: InvoiceTotals): string {
+  const rows = ctx.order.items
+    .map((item, i) => {
+      const img = ctx.images[item.productId];
+      const line = totals.lines[i];
+      return `<tr>
+        <td width="64" style="padding:12px 12px 12px 0;border-bottom:1px solid ${C.line};vertical-align:top;">${
+          img
+            ? `<img src="${escapeHtml(img)}" alt="" width="56" height="56" style="width:56px;height:56px;object-fit:cover;border:1px solid ${C.line};display:block;">`
+            : `<div style="width:56px;height:56px;background:${C.paper};text-align:center;line-height:56px;color:${C.terracotta};">✺</div>`
+        }</td>
+        <td style="padding:12px 0;border-bottom:1px solid ${C.line};font-size:14px;color:${C.ink};vertical-align:top;">
+          ${escapeHtml(item.name)}<br><span style="color:${C.muted};font-size:13px;">Qty ${item.quantity} × ${rupees(line.unitPaise)}</span></td>
+        <td align="right" style="padding:12px 0 12px 8px;border-bottom:1px solid ${C.line};font-size:14px;color:${C.ink};vertical-align:top;white-space:nowrap;">${rupees(line.totalPaise)}</td></tr>`;
+    })
+    .join("");
+
+  const t = (label: string, value: string, strong = false) =>
+    `<tr><td colspan="2" style="padding:5px 0;font-size:${strong ? 16 : 14}px;color:${C.ink};${strong ? `font-weight:bold;border-top:2px solid ${C.ink};padding-top:10px;` : ""}">${label}</td>
+     <td align="right" style="padding:5px 0;font-size:${strong ? 16 : 14}px;color:${C.ink};white-space:nowrap;${strong ? `font-weight:bold;border-top:2px solid ${C.ink};padding-top:10px;` : ""}">${value}</td></tr>`;
+
+  let extra = "";
+  if (totals.discountPaise > 0) extra += t("Discount", `− ${rupees(totals.discountPaise)}`);
+  const tax = totals.tax
+    ? `<tr><td colspan="3" style="padding:4px 0 0;font-size:12px;color:${C.muted};">Includes GST of ${rupees(totals.tax.totalTaxPaise)} (${totals.tax.ratePercent}%)</td></tr>`
+    : "";
+
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;">${rows}
+    ${t("Subtotal", rupees(totals.grossItemsPaise))}${extra}
+    ${t("Shipping", totals.shippingPaise === 0 ? "Free" : rupees(totals.shippingPaise))}
+    ${t("Total", rupees(totals.totalPaise), true)}${tax}</table>`;
+}
+
+function textSummary(ctx: OrderEmailContext, totals: InvoiceTotals): string {
+  const lines = ctx.order.items.map(
+    (item, i) => `- ${item.name} — ${item.quantity} x ${rupees(totals.lines[i].unitPaise)} = ${rupees(totals.lines[i].totalPaise)}`
+  );
+  lines.push("", `Subtotal: ${rupees(totals.grossItemsPaise)}`);
+  if (totals.discountPaise > 0) lines.push(`Discount: -${rupees(totals.discountPaise)}`);
+  lines.push(`Shipping: ${totals.shippingPaise === 0 ? "Free" : rupees(totals.shippingPaise)}`);
+  lines.push(`Total: ${rupees(totals.totalPaise)}`);
+  if (totals.tax) lines.push(`(Includes GST of ${rupees(totals.tax.totalTaxPaise)} @ ${totals.tax.ratePercent}%)`);
+  return lines.join("\n");
+}
+
+const factRow = (label: string, value: string) =>
+  `<tr><td style="padding:3px 12px 3px 0;font-size:13px;color:${C.muted};white-space:nowrap;">${label}</td><td style="padding:3px 0;font-size:14px;color:${C.ink};">${value}</td></tr>`;
+
+export function orderConfirmationEmail(ctx: OrderEmailContext): Rendered {
+  const { order } = ctx;
+  const num = formatOrderNumber(order.orderNumber);
+  const totals = computeInvoiceTotals(order, getBusinessProfile());
+  const body = `${p(`Hi ${escapeHtml(order.address.fullName)}, thank you — your payment was received and your order is confirmed. Your handmade pieces are now being prepared with care.`)}
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:${C.paper};width:100%;"><tr><td style="padding:14px 16px;">
+      <table role="presentation" cellspacing="0" cellpadding="0">
+        ${factRow("Order number", `<strong>${num}</strong>`)}
+        ${factRow("Order date", fmtDate(order.createdAt))}
+        ${factRow("Invoice", escapeHtml(ctx.invoiceNumber))}
+        ${factRow("Payment", escapeHtml(paymentLabel(order)))}
+        ${factRow("Estimated delivery", escapeHtml(ctx.estimatedDelivery))}
+      </table></td></tr></table>
+    ${summaryTable(ctx, totals)}
+    <p style="font-size:12px;letter-spacing:2px;color:${C.terracotta};margin:0 0 6px;">SHIPPING TO</p>
+    <p style="font-size:14px;line-height:1.6;color:${C.ink};margin:0 0 20px;">${addressHtml(order)}${order.address.phone ? `<br>${escapeHtml(order.address.phone)}` : ""}</p>
+    ${p("Your PDF invoice is attached to this email. You can also view this order and download the invoice from your account at any time.")}
+    ${button("View order & invoice", ctx.accountUrl)}`;
+  const text = `Hi ${order.address.fullName},
+
+Thank you — your payment was received and your order is confirmed.
+
+Order number: ${num}
+Order date: ${fmtDate(order.createdAt)}
+Invoice: ${ctx.invoiceNumber}
+Payment: ${paymentLabel(order)}
+Estimated delivery: ${ctx.estimatedDelivery}
+
+${textSummary(ctx, totals)}
+
+Shipping to:
+${addressText(order)}
+
+Your PDF invoice is attached. View your order and download the invoice: ${ctx.accountUrl}
+
+Questions? ${supportLine()}
+`;
+  return {
+    subject: `Order Confirmed – ${siteConfig.name} | Order #${num}`,
+    html: layout({ preheader: `Order #${num} is confirmed. Invoice attached.`, heading: "Your order is confirmed", body, footerNote: "A PDF invoice is attached to this email." }),
+    text,
+  };
+}
+
+export function adminOrderAlertEmail(ctx: OrderEmailContext): Rendered {
+  const { order } = ctx;
+  const num = formatOrderNumber(order.orderNumber);
+  const totals = computeInvoiceTotals(order, getBusinessProfile());
+  const body = `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 20px;">
+      ${factRow("Order number", `<strong>${num}</strong>`)}
+      ${factRow("Order date", fmtDate(order.createdAt))}
+      ${factRow("Customer", escapeHtml(order.address.fullName))}
+      ${factRow("Email", escapeHtml(order.customerEmail))}
+      ${factRow("Phone", escapeHtml(order.address.phone || "—"))}
+      ${factRow("Payment status", escapeHtml(paymentLabel(order)))}
+      ${factRow("Gateway reference", escapeHtml(order.razorpayPaymentId))}
+      ${factRow("Gateway order", escapeHtml(order.razorpayOrderId))}
+      ${factRow("Invoice", escapeHtml(ctx.invoiceNumber))}
+    </table>
+    ${summaryTable(ctx, totals)}
+    <p style="font-size:12px;letter-spacing:2px;color:${C.terracotta};margin:0 0 6px;">SHIP TO</p>
+    <p style="font-size:14px;line-height:1.6;color:${C.ink};margin:0 0 20px;">${addressHtml(order)}</p>
+    ${p("The invoice PDF sent to the customer is attached.")}
+    ${button("Open in admin dashboard", ctx.adminUrl)}`;
+  const text = `New order ${num}
+
+Order date: ${fmtDate(order.createdAt)}
+Customer: ${order.address.fullName}
+Email: ${order.customerEmail}
+Phone: ${order.address.phone || "-"}
+Payment: ${paymentLabel(order)}
+Gateway reference: ${order.razorpayPaymentId}
+Gateway order: ${order.razorpayOrderId}
+Invoice: ${ctx.invoiceNumber}
+
+${textSummary(ctx, totals)}
+
+Ship to:
+${addressText(order)}
+
+Admin dashboard: ${ctx.adminUrl}
+`;
+  return {
+    subject: `New Order Received – #${num}`,
+    html: layout({ preheader: `New order ${num} from ${order.address.fullName}`, heading: `New order ${num}`, body }),
+    text,
+  };
+}
+
+export type StatusEmailKind = "shipped" | "cancelled" | "refunded";
+
+export function orderStatusEmail(
+  kind: StatusEmailKind,
+  order: StoredOrder,
+  accountUrl: string
+): Rendered {
+  const num = formatOrderNumber(order.orderNumber);
+  const copy = {
+    shipped: {
+      subject: `Your ${siteConfig.name} order is on its way | Order #${num}`,
+      heading: "Your order has shipped",
+      lead: "your order is on its way.",
+    },
+    cancelled: {
+      subject: `Your ${siteConfig.name} order was cancelled | Order #${num}`,
+      heading: "Your order was cancelled",
+      lead: "your order has been cancelled. If you paid, we'll be in touch about your refund.",
+    },
+    refunded: {
+      subject: `Refund issued | Order #${num}`,
+      heading: "Your refund has been issued",
+      lead: "a refund for your order has been issued. It usually reaches your original payment method within 5–7 business days.",
+    },
+  }[kind];
+
+  const tracking =
+    kind === "shipped" && order.trackingNumber
+      ? p(`${order.carrier ? `${escapeHtml(order.carrier)} · ` : ""}Tracking number: <strong>${escapeHtml(order.trackingNumber)}</strong>`)
+      : "";
+  const body = `${p(`Hi ${escapeHtml(order.address.fullName)}, ${copy.lead}`)}${tracking}
+    ${p(`Order number: <strong>${num}</strong>`)}${button("View order", accountUrl)}`;
+  const text = `Hi ${order.address.fullName}, ${copy.lead}\n\nOrder number: ${num}\n${
+    kind === "shipped" && order.trackingNumber ? `Tracking: ${order.carrier ? order.carrier + " " : ""}${order.trackingNumber}\n` : ""
+  }\nView order: ${accountUrl}\n\n${supportLine()}\n`;
+  return {
+    subject: copy.subject,
+    html: layout({ preheader: copy.heading, heading: copy.heading, body }),
+    text,
   };
 }

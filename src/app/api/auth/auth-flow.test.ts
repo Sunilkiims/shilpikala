@@ -51,8 +51,15 @@ describe("register", () => {
     expect(customer).not.toHaveProperty("password_hash");
     expect(res.headers.get("set-cookie")).toMatch(/HttpOnly/);
     expect(res.headers.get("set-cookie")).toMatch(/SameSite=Lax/);
-    expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0].to).toBe("jane@example.com");
+    // A welcome email and a verification email, both to the new customer.
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+    const subjects = sendEmail.mock.calls.map((c) => c[0].subject);
+    expect(subjects.some((s: string) => /welcome/i.test(s))).toBe(true);
+    expect(subjects.some((s: string) => /confirm your/i.test(s))).toBe(true);
+    for (const [mail] of sendEmail.mock.calls) {
+      expect(mail.to).toBe("jane@example.com");
+      expect(mail.text).toBeTruthy();
+    }
   });
 
   it("rejects a duplicate email (case-insensitively) with 409", async () => {

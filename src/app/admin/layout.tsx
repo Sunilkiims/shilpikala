@@ -10,6 +10,7 @@ const adminNav = [
   { label: "Inquiries", href: "/admin/inquiries" },
   { label: "Blog", href: "/admin/blog" },
   { label: "Payments", href: "/admin/payments" },
+  { label: "Emails", href: "/admin/emails" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

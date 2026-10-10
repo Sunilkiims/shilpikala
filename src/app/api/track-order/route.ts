@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrderById } from "@/lib/orders/store";
+import { getOrderByReference } from "@/lib/orders/store";
 import { getClientIp } from "@/lib/security/getClientIp";
 import {
   isRateLimited,
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
 
-  const order = await getOrderById(orderId);
+  const order = await getOrderByReference(orderId);
 
   if (!order || order.customerEmail.toLowerCase() !== email.toLowerCase()) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     order: {
       id: order.id,
+      orderNumber: order.orderNumber,
       status: order.status,
       createdAt: order.createdAt,
       itemsSubtotal: order.itemsSubtotal,

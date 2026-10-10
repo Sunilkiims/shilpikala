@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { readJson } from "@/lib/auth/guard";
-import { sendEmail } from "@/lib/email/send";
-import { orderShippedEmail } from "@/lib/email/templates";
+import { sendOrderStatusEmail } from "@/lib/orders/orderEmails";
 import { getOrderById, updateOrderFulfilment } from "@/lib/orders/store";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/orders/types";
 
@@ -33,9 +32,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     carrier: carrier === undefined ? undefined : carrier || null,
   });
 
-  // Tell the customer once, on the transition into "shipped".
-  if (updated && status === "shipped" && before.status !== "shipped") {
-    await sendEmail({ to: updated.customerEmail, ...orderShippedEmail(updated) });
+  // Tell the customer on the transition into shipped / cancelled / refunded.
+  // The outbox sends each status email at most once per order.
+  if (updated && status && status !== before.status && (status === "shipped" || status === "cancelled" || status === "refunded")) {
+    await sendOrderStatusEmail(updated, status);
   }
   return NextResponse.json({ order: updated });
 }

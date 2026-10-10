@@ -6,6 +6,7 @@ import { formatPrice } from "@/lib/utils/currency";
 
 type TrackedOrder = {
   id: string;
+  orderNumber?: number;
   status: string;
   createdAt: string;
   itemsSubtotal: number;
@@ -39,6 +40,34 @@ export function TrackOrderForm() {
     "idle"
   );
   const [order, setOrder] = useState<TrackedOrder | null>(null);
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
+  const [invoiceError, setInvoiceError] = useState(false);
+
+  async function downloadInvoice() {
+    setInvoiceBusy(true);
+    setInvoiceError(false);
+    try {
+      const response = await fetch("/api/track-order/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order?.id, email: email.trim() }),
+      });
+      if (!response.ok) throw new Error("download failed");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "ShilpiKala-Invoice.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setInvoiceError(true);
+    } finally {
+      setInvoiceBusy(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -73,7 +102,8 @@ export function TrackOrderForm() {
     return (
       <div className="max-w-sm">
         <p className="text-xs text-earth-brown/70">
-          Order reference: <span className="text-charcoal">{order.id}</span>
+          Order {order.orderNumber ? `SK-${order.orderNumber}` : ""} · Reference:{" "}
+          <span className="text-charcoal">{order.id}</span>
         </p>
         <p className="mt-1 text-xs text-earth-brown/70">
           Placed {formatDate(order.createdAt)} · {order.status === "paid" ? "Paid" : order.status}
@@ -113,6 +143,20 @@ export function TrackOrderForm() {
           {order.address.line2 ? `, ${order.address.line2}` : ""}, {order.address.city},{" "}
           {order.address.state} {order.address.postalCode}
         </p>
+
+        <button
+          type="button"
+          onClick={downloadInvoice}
+          disabled={invoiceBusy}
+          className="mt-6 block text-sm text-terracotta underline underline-offset-2 hover:text-terracotta-deep disabled:opacity-50"
+        >
+          {invoiceBusy ? "Preparing invoice…" : "Download invoice (PDF)"}
+        </button>
+        {invoiceError && (
+          <p role="alert" className="mt-2 text-sm text-terracotta-deep">
+            Couldn&apos;t download the invoice. Please try again.
+          </p>
+        )}
 
         <button
           type="button"

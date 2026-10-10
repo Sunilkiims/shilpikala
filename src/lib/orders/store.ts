@@ -1,11 +1,13 @@
 import type { Address } from "@/types/catalog";
 import type { PricedLineItem } from "@/lib/checkout/pricing";
-import type { OrderStatus, StoredOrder } from "@/lib/orders/types";
+import { parseOrderNumber, type NewOrder, type OrderStatus, type StoredOrder } from "@/lib/orders/types";
 import { getDb } from "@/lib/db";
 import { iso, isUniqueViolation, num } from "@/lib/db/rows";
 
 type OrderRow = {
   id: string;
+  order_number: number;
+  payment_method: string | null;
   razorpay_order_id: string;
   razorpay_payment_id: string;
   items_subtotal: number;
@@ -25,6 +27,7 @@ type OrderRow = {
 function toOrder(r: OrderRow): StoredOrder {
   const order: StoredOrder = {
     id: r.id,
+    orderNumber: num(r.order_number),
     razorpayOrderId: r.razorpay_order_id,
     razorpayPaymentId: r.razorpay_payment_id,
     itemsSubtotal: num(r.items_subtotal),
@@ -38,6 +41,7 @@ function toOrder(r: OrderRow): StoredOrder {
     createdAt: iso(r.created_at),
   };
   if (r.customer_id !== null && r.customer_id !== undefined) order.customerId = num(r.customer_id);
+  if (r.payment_method) order.paymentMethod = r.payment_method;
   if (r.tracking_number) order.trackingNumber = r.tracking_number;
   if (r.carrier) order.carrier = r.carrier;
   return order;
@@ -47,18 +51,18 @@ function toOrder(r: OrderRow): StoredOrder {
  * Inserts an order. The razorpay_order_id UNIQUE constraint makes a
  * racing replay a no-op instead of a duplicate — returns false then.
  */
-export async function appendOrder(order: StoredOrder): Promise<boolean> {
+export async function appendOrder(order: NewOrder): Promise<boolean> {
   const db = await getDb();
   try {
     await db.query(
       `INSERT INTO orders (id, razorpay_order_id, razorpay_payment_id, items_subtotal, shipping,
-         amount, currency, customer_email, customer_id, address, items, status, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$13)`,
+         amount, currency, customer_email, customer_id, address, items, status, payment_method, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$14)`,
       [
         order.id, order.razorpayOrderId, order.razorpayPaymentId, order.itemsSubtotal,
         order.shipping, order.amount, order.currency, order.customerEmail,
         order.customerId ?? null, JSON.stringify(order.address), JSON.stringify(order.items),
-        order.status, order.createdAt,
+        order.status, order.paymentMethod ?? null, order.createdAt,
       ]
     );
     return true;
@@ -76,6 +80,18 @@ async function one(where: string, param: unknown): Promise<StoredOrder | undefin
 
 export const getOrderByRazorpayOrderId = (id: string) => one("razorpay_order_id = $1", id);
 export const getOrderById = (id: string) => one("id = $1", id);
+export const getOrderByPaymentId = (paymentId: string) => one("razorpay_payment_id = $1", paymentId);
+
+/**
+ * Finds an order by what a customer would type: the full order reference
+ * (UUID) or the short order number ("SK-1001").
+ */
+export async function getOrderByReference(reference: string): Promise<StoredOrder | undefined> {
+  const byId = await getOrderById(reference.trim());
+  if (byId) return byId;
+  const number = parseOrderNumber(reference);
+  return number === null ? undefined : one("order_number = $1", number);
+}
 
 export async function getAllOrders(): Promise<StoredOrder[]> {
   const db = await getDb();

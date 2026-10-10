@@ -298,7 +298,7 @@ describe("POST /api/checkout/verify-payment — recording from the snapshot", ()
     expect((await catalog.getProducts()).find((x) => x.id === p.id)?.stockQuantity).toBe(3);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "jane@example.com", subject: expect.stringContaining("confirmed") })
+      expect.objectContaining({ to: "jane@example.com", subject: expect.stringContaining("Order Confirmed") })
     );
   });
 

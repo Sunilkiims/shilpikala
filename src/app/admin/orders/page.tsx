@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { formatPrice } from "@/lib/utils/currency";
 import { OrderFulfilmentForm } from "@/components/admin/OrderFulfilmentForm";
 import { getAllOrders } from "@/lib/orders/store";
+import { formatOrderNumber } from "@/lib/orders/types";
 
 export const metadata: Metadata = {
   title: "Orders — Admin",
@@ -37,10 +38,10 @@ export default async function AdminOrdersPage() {
       ) : (
         <ul className="mt-10 divide-y divide-earth-brown/15 border-y border-earth-brown/15">
           {orders.map((order) => (
-            <li key={order.id} className="py-6">
+            <li key={order.id} id={`order-${order.id}`} className="py-6">
               <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
                 <p className="text-sm text-charcoal">
-                  {order.address.fullName}{" "}
+                  <strong>{formatOrderNumber(order.orderNumber)}</strong> · {order.address.fullName}{" "}
                   <span className="text-earth-brown/70">
                     — {order.address.city}, {order.address.state}
                     {order.customerEmail && ` · ${order.customerEmail}`}
@@ -87,7 +88,12 @@ export default async function AdminOrdersPage() {
                 <p className="text-earth-brown/70">
                   {order.razorpayOrderId} · {order.razorpayPaymentId}
                 </p>
-                <p className="text-charcoal">{formatPrice(String(order.amount))}</p>
+                <p className="text-charcoal">
+                  <a href={`/api/admin/orders/${order.id}/invoice`} className="mr-4 text-xs text-terracotta underline underline-offset-2 hover:text-terracotta-deep">
+                    Invoice PDF
+                  </a>
+                  {formatPrice(String(order.amount))}
+                </p>
               </div>
             </li>
           ))}
