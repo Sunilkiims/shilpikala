@@ -102,10 +102,10 @@ describe("catalogStore product CRUD", () => {
       inStock: true,
       categorySlugs: [],
     });
-    await store.addProductImage(created.id, {
-      id: 1,
-      src: "/images/products/test.jpg",
+    const withImage = await store.addProductImage(created.id, {
       alt: "Has An Image",
+      mime: "image/jpeg",
+      data: Buffer.from([1, 2, 3]),
     });
 
     const updated = await store.updateProduct(created.id, {
@@ -120,7 +120,7 @@ describe("catalogStore product CRUD", () => {
 
     expect(updated?.description).toBe("Updated description — no images field sent.");
     expect(updated?.images).toHaveLength(1);
-    expect(updated?.images[0].src).toBe("/images/products/test.jpg");
+    expect(updated?.images[0].src).toBe(withImage!.images[0].src);
   });
 
   it("returns undefined when updating a product that doesn't exist", async () => {
@@ -172,15 +172,18 @@ describe("catalogStore product images", () => {
     });
 
     const afterAdd = await store.addProductImage(created.id, {
-      id: 1,
-      src: "/images/products/a.jpg",
       alt: "a",
+      mime: "image/jpeg",
+      data: Buffer.from([9, 8, 7]),
     });
     expect(afterAdd?.images).toHaveLength(1);
+    const image = afterAdd!.images[0];
+    expect((await store.getProductImageData(image.id))?.data).toEqual(Buffer.from([9, 8, 7]));
 
-    const removeResult = await store.removeProductImage(created.id, 1);
-    expect(removeResult?.removedImage.src).toBe("/images/products/a.jpg");
+    const removeResult = await store.removeProductImage(created.id, image.id);
+    expect(removeResult?.removedImage.src).toBe(image.src);
     expect(removeResult?.product.images).toHaveLength(0);
+    expect(await store.getProductImageData(image.id)).toBeUndefined();
   });
 });
 

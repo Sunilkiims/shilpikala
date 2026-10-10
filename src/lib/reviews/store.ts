@@ -1,82 +1,81 @@
-import { mkdir, readFile, appendFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { ReviewStatus, StoredReview } from "@/lib/reviews/types";
+import { getDb } from "@/lib/db";
+import { iso, isUniqueViolation, num } from "@/lib/db/rows";
 
 /**
- * Same JSON-Lines pattern as the order log (storage/orders.jsonl), kept
- * separate from storage/catalog.json since reviews are customer-
- * submitted content with a moderation workflow, not admin-managed
- * catalogue data. Not gitignored, same reasoning as orders.jsonl —
- * this is customer data, not your own site content.
+ * Customer-submitted reviews with a moderation workflow. A UNIQUE
+ * (order_id, product_id) constraint enforces one review per purchase
+ * even under concurrent submissions.
  */
 
-const STORAGE_DIR = path.join(process.cwd(), "storage");
-const REVIEWS_FILE = path.join(STORAGE_DIR, "reviews.jsonl");
+type ReviewRow = {
+  id: string; product_id: number; order_id: string; customer_email: string;
+  author_name: string; rating: number; content: string; status: ReviewStatus;
+  created_at: Date | string;
+};
 
-async function ensureStorageDir(): Promise<void> {
-  await mkdir(STORAGE_DIR, { recursive: true });
-}
+const toReview = (r: ReviewRow): StoredReview => ({
+  id: r.id,
+  productId: num(r.product_id),
+  orderId: r.order_id,
+  customerEmail: r.customer_email,
+  authorName: r.author_name,
+  rating: num(r.rating),
+  content: r.content,
+  status: r.status,
+  createdAt: iso(r.created_at),
+});
 
-async function readAllReviews(): Promise<StoredReview[]> {
+/** Returns false if this order already reviewed this product. */
+export async function appendReview(review: StoredReview): Promise<boolean> {
+  const db = await getDb();
   try {
-    const raw = await readFile(REVIEWS_FILE, "utf8");
-    return raw
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as StoredReview);
+    await db.query(
+      `INSERT INTO reviews (id, product_id, order_id, customer_email, author_name, rating, content, status, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [review.id, review.productId, review.orderId, review.customerEmail, review.authorName,
+        review.rating, review.content, review.status, review.createdAt]
+    );
+    return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if (isUniqueViolation(error)) return false;
     throw error;
   }
 }
 
-async function writeAllReviews(reviews: StoredReview[]): Promise<void> {
-  await ensureStorageDir();
-  const content = reviews.map((review) => JSON.stringify(review)).join("\n");
-  await writeFile(REVIEWS_FILE, content ? `${content}\n` : "", "utf8");
-}
-
-export async function appendReview(review: StoredReview): Promise<void> {
-  await ensureStorageDir();
-  await appendFile(REVIEWS_FILE, `${JSON.stringify(review)}\n`, "utf8");
-}
-
 export async function getAllReviews(): Promise<StoredReview[]> {
-  const reviews = await readAllReviews();
-  return reviews.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const db = await getDb();
+  const res = await db.query<ReviewRow>("SELECT * FROM reviews ORDER BY created_at DESC");
+  return res.rows.map(toReview);
 }
 
 export async function getReviewsByProductId(
   productId: number,
   status?: ReviewStatus
 ): Promise<StoredReview[]> {
-  const reviews = await readAllReviews();
-  return reviews
-    .filter((review) => review.productId === productId)
-    .filter((review) => (status ? review.status === status : true))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const db = await getDb();
+  const res = await db.query<ReviewRow>(
+    `SELECT * FROM reviews WHERE product_id = $1 AND ($2::text IS NULL OR status = $2)
+      ORDER BY created_at DESC`,
+    [productId, status ?? null]
+  );
+  return res.rows.map(toReview);
 }
 
 export async function hasReviewForOrderAndProduct(
   orderId: string,
   productId: number
 ): Promise<boolean> {
-  const reviews = await readAllReviews();
-  return reviews.some(
-    (review) => review.orderId === orderId && review.productId === productId
-  );
+  const db = await getDb();
+  const res = await db.query("SELECT 1 FROM reviews WHERE order_id = $1 AND product_id = $2", [orderId, productId]);
+  return res.rowCount > 0;
 }
 
 export async function updateReviewStatus(
   id: string,
   status: ReviewStatus
 ): Promise<StoredReview | undefined> {
-  const reviews = await readAllReviews();
-  const index = reviews.findIndex((review) => review.id === id);
-  if (index === -1) return undefined;
-
-  reviews[index] = { ...reviews[index], status };
-  await writeAllReviews(reviews);
-  return reviews[index];
+  const db = await getDb();
+  const res = await db.query<ReviewRow>("UPDATE reviews SET status = $2 WHERE id = $1 RETURNING *", [id, status]);
+  return res.rows[0] ? toReview(res.rows[0]) : undefined;
 }

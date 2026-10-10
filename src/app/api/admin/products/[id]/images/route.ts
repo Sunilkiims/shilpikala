@@ -1,8 +1,5 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
-import { addProductImage, getProducts } from "@/lib/store/catalogStore";
+import { addProductImage, getProductById } from "@/lib/store/catalogStore";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -10,23 +7,7 @@ type RouteParams = {
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB
 
-const ALLOWED_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
-
-const PRODUCTS_IMAGE_DIR = path.join(
-  process.cwd(),
-  "public",
-  "images",
-  "products"
-);
-
-function nextImageId(images: { id: number }[]): number {
-  return images.reduce((max, image) => Math.max(max, image.id), 0) + 1;
-}
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
@@ -35,8 +16,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   }
 
-  const products = await getProducts();
-  const product = products.find((p) => p.id === productId);
+  const product = await getProductById(productId);
   if (!product) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
@@ -53,8 +33,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "missing_file" }, { status: 400 });
   }
 
-  const extension = ALLOWED_TYPES[file.type];
-  if (!extension) {
+  if (!ALLOWED_TYPES.has(file.type)) {
     return NextResponse.json(
       { error: "unsupported_file_type" },
       { status: 415 }
@@ -69,25 +48,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "file_too_large" }, { status: 413 });
   }
 
-  // Never trust the original filename — generate our own, so there's no
-  // path-traversal or collision risk from what the browser sent.
-  const filename = `${productId}-${randomUUID()}.${extension}`;
-
-  try {
-    await mkdir(PRODUCTS_IMAGE_DIR, { recursive: true });
-    await writeFile(path.join(PRODUCTS_IMAGE_DIR, filename), buffer);
-  } catch (error) {
-    console.error("[admin] Failed to write product image:", error);
-    return NextResponse.json({ error: "write_failed" }, { status: 500 });
-  }
-
-  const image = {
-    id: nextImageId(product.images),
-    src: `/images/products/${filename}`,
+  const updated = await addProductImage(productId, {
     alt: product.name,
-  };
-
-  const updated = await addProductImage(productId, image);
+    mime: file.type,
+    data: buffer,
+  });
   if (!updated) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }

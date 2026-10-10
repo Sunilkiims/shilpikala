@@ -1,6 +1,4 @@
 import { createHmac } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { isolateStorageDir } from "@/test-support/tempStorageDir";
 import { jsonRequest, malformedJsonRequest } from "@/test-support/request";
@@ -341,8 +339,9 @@ describe("POST /api/checkout/verify-payment — recording from the snapshot", ()
   it("a stock-decrement failure doesn't stop the order being recorded or the customer being emailed", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     await pendingStore.savePendingOrder(pendingOrder());
-    // Make the catalogue unreadable so decrementStock throws.
-    mkdirSync(path.join(process.cwd(), "storage", "catalog.json"), { recursive: true });
+    // Make the products table unusable so decrementStock throws.
+    const { getDb } = await import("@/lib/db");
+    await (await getDb()).exec("DROP TABLE products CASCADE");
 
     const response = await POST(jsonRequest(URL, { body: verifyBody() }));
 

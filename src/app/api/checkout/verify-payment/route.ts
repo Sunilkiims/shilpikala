@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { verifyPaymentSignature } from "@/lib/razorpay/verify";
-import { appendOrder, getOrderByRazorpayOrderId } from "@/lib/orders/store";
+import {
+  appendOrder,
+  getOrderByRazorpayOrderId,
+  recordUnreconciledPayment,
+} from "@/lib/orders/store";
 import { deletePendingOrder, getPendingOrder } from "@/lib/orders/pendingStore";
 import { decrementStock } from "@/lib/store/catalogStore";
 import { sendEmail } from "@/lib/email/send";
@@ -77,6 +81,11 @@ async function recordOrder(razorpayOrderId: string, razorpayPaymentId: string) {
       `[orders] RECONCILE: payment ${razorpayPaymentId} for Razorpay order ` +
         `${razorpayOrderId} verified, but no order snapshot exists.`
     );
+    await recordUnreconciledPayment(
+      razorpayOrderId,
+      razorpayPaymentId,
+      "verified payment with no order snapshot"
+    ).catch((error) => console.error("[orders] Could not log unreconciled payment:", error));
     return;
   }
 
@@ -89,6 +98,7 @@ async function recordOrder(razorpayOrderId: string, razorpayPaymentId: string) {
     amount: pending.amount,
     currency: "INR",
     customerEmail: pending.customerEmail,
+    ...(pending.customerId !== undefined ? { customerId: pending.customerId } : {}),
     address: pending.address,
     items: pending.items,
     status: "paid",
@@ -96,7 +106,8 @@ async function recordOrder(razorpayOrderId: string, razorpayPaymentId: string) {
   };
 
   // The one critical step. If this throws, the caller logs it.
-  await appendOrder(order);
+  const inserted = await appendOrder(order);
+  if (!inserted) return; // a concurrent replay already recorded it
 
   // Everything below is best-effort and independent: the order is
   // already safely recorded, so one failing must not block the others.

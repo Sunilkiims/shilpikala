@@ -1,9 +1,9 @@
 import type { Category, Product } from "@/types/catalog";
-import { getCategories, getProducts } from "@/lib/store/catalogStore";
+import { getCategories, getProductById as fetchProductById, getProducts } from "@/lib/store/catalogStore";
 
 /**
  * Single entry point every storefront page uses to read the catalogue.
- * Backed entirely by ShilpiKala's own file-based store (see
+ * Backed entirely by ShilpiKala's own database-backed store (see
  * src/lib/store/catalogStore.ts) — no external commerce platform.
  */
 
@@ -30,8 +30,7 @@ export async function getProductBySlug(
 }
 
 export async function getProductById(id: number): Promise<Product | undefined> {
-  const products = await getProducts();
-  return products.find((product) => product.id === id);
+  return fetchProductById(id);
 }
 
 export async function getProductsByCategorySlug(

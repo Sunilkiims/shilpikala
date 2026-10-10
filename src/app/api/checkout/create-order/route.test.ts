@@ -1,5 +1,3 @@
-import { mkdirSync } from "node:fs";
-import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { isolateStorageDir } from "@/test-support/tempStorageDir";
 import { jsonRequest, malformedJsonRequest } from "@/test-support/request";
@@ -330,8 +328,9 @@ describe("POST /api/checkout/create-order — the order snapshot", () => {
   it("refuses to start a payment it couldn't snapshot: 500 and no order id handed out", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const product = await catalog.createProduct(baseProduct());
-    // Make the snapshot file unwritable (a directory where the file should be).
-    mkdirSync(path.join(process.cwd(), "storage", "pending-orders.jsonl"), { recursive: true });
+    // Make the snapshot table unusable so saving the snapshot throws.
+    const { getDb } = await import("@/lib/db");
+    await (await getDb()).exec("DROP TABLE pending_orders");
 
     const response = await POST(
       jsonRequest(URL, {

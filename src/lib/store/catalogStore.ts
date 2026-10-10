@@ -1,54 +1,85 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { Category, Product, ProductImage } from "@/types/catalog";
-import { products as seedProducts } from "@/data/products";
-import { categories as seedCategories } from "@/data/categories";
+import { getDb } from "@/lib/db";
+import type { Db } from "@/lib/db/client";
+import { bytes, num } from "@/lib/db/rows";
 import { uniqueSlug } from "@/lib/utils/slugify";
 
 /**
- * This is ShilpiKala's own catalogue — no external commerce platform
- * involved. Products and categories live in storage/catalog.json,
- * read/written whole (not append-only, unlike the order log) since
- * admin edits are infrequent and the catalogue is small. The file
- * ships committed to git with the Day 8 seed content, then diverges
- * per-deployment as the admin edits it — see README/report for why
- * that's a deliberate choice, unlike storage/orders.jsonl.
+ * ShilpiKala's own catalogue, stored in the database (PostgreSQL in
+ * production, embedded PGlite for local dev). Product photos are stored
+ * in the database too and served by /media/product-images/[id], which
+ * makes the app fully stateless — it runs on serverless hosts with a
+ * read-only filesystem.
  */
 
-const STORAGE_DIR = path.join(process.cwd(), "storage");
-const CATALOG_FILE = path.join(STORAGE_DIR, "catalog.json");
+export const imageUrl = (id: number) => `/media/product-images/${id}`;
 
-type CatalogDoc = {
-  products: Product[];
-  categories: Category[];
+type ProductRow = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  short_description: string | null;
+  price: string;
+  regular_price: string;
+  sale_price: string | null;
+  on_sale: boolean;
+  in_stock: boolean;
+  stock_quantity: number | null;
+  average_rating: number | null;
 };
+type CategoryRow = { id: number; name: string; slug: string; description: string | null };
+type ImageRow = { id: number; product_id: number; alt: string };
 
-async function ensureStorageDir(): Promise<void> {
-  await mkdir(STORAGE_DIR, { recursive: true });
+function toCategory(r: CategoryRow): Category {
+  return {
+    id: num(r.id),
+    name: r.name,
+    slug: r.slug,
+    ...(r.description ? { description: r.description } : {}),
+  };
 }
 
-async function readCatalog(): Promise<CatalogDoc> {
-  try {
-    const raw = await readFile(CATALOG_FILE, "utf8");
-    return JSON.parse(raw) as CatalogDoc;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      // First run: seed from the Day 2 static catalogue and persist it,
-      // so the site has real content from the very first request.
-      const seeded: CatalogDoc = {
-        products: seedProducts,
-        categories: seedCategories,
-      };
-      await writeCatalog(seeded);
-      return seeded;
+async function hydrate(db: Db, rows: ProductRow[]): Promise<Product[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => num(r.id));
+  const cats = await db.query<CategoryRow & { product_id: number }>(
+    `SELECT c.*, pc.product_id FROM product_categories pc
+       JOIN categories c ON c.id = pc.category_id
+      WHERE pc.product_id = ANY($1::int[]) ORDER BY c.id`,
+    [ids]
+  );
+  const imgs = await db.query<ImageRow>(
+    `SELECT id, product_id, alt FROM product_images
+      WHERE product_id = ANY($1::int[]) ORDER BY position, id`,
+    [ids]
+  );
+  return rows.map((r) => {
+    const id = num(r.id);
+    const product: Product = {
+      id,
+      name: r.name,
+      slug: r.slug,
+      description: r.description,
+      price: r.price,
+      regularPrice: r.regular_price,
+      onSale: r.on_sale,
+      inStock: r.in_stock,
+      categories: cats.rows.filter((c) => num(c.product_id) === id).map(toCategory),
+      images: imgs.rows
+        .filter((i) => num(i.product_id) === id)
+        .map((i): ProductImage => ({ id: num(i.id), src: imageUrl(num(i.id)), alt: i.alt })),
+    };
+    if (r.short_description) product.shortDescription = r.short_description;
+    if (r.sale_price) product.salePrice = r.sale_price;
+    if (r.stock_quantity !== null && r.stock_quantity !== undefined) {
+      product.stockQuantity = num(r.stock_quantity);
     }
-    throw error;
-  }
-}
-
-async function writeCatalog(doc: CatalogDoc): Promise<void> {
-  await ensureStorageDir();
-  await writeFile(CATALOG_FILE, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
+    if (r.average_rating !== null && r.average_rating !== undefined) {
+      product.averageRating = num(r.average_rating);
+    }
+    return product;
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -56,216 +87,206 @@ async function writeCatalog(doc: CatalogDoc): Promise<void> {
 // ---------------------------------------------------------------------
 
 export async function getProducts(): Promise<Product[]> {
-  return (await readCatalog()).products;
+  const db = await getDb();
+  const { rows } = await db.query<ProductRow>("SELECT * FROM products ORDER BY id");
+  return hydrate(db, rows);
+}
+
+export async function getProductById(id: number): Promise<Product | undefined> {
+  const db = await getDb();
+  const { rows } = await db.query<ProductRow>("SELECT * FROM products WHERE id = $1", [id]);
+  return (await hydrate(db, rows))[0];
 }
 
 export async function getCategories(): Promise<Category[]> {
-  return (await readCatalog()).categories;
+  const db = await getDb();
+  const { rows } = await db.query<CategoryRow>("SELECT * FROM categories ORDER BY id");
+  return rows.map(toCategory);
 }
 
 // ---------------------------------------------------------------------
 // Product writes
 // ---------------------------------------------------------------------
 
-export type ProductInput = Omit<
-  Product,
-  "id" | "slug" | "categories" | "images"
-> & {
+export type ProductInput = Omit<Product, "id" | "slug" | "categories" | "images"> & {
   categorySlugs: string[];
   slug?: string;
-  // Omitted entirely by the admin product form (it doesn't manage
-  // photos) — createProduct defaults to [], updateProduct preserves
-  // whatever the product already had. Only the dedicated image
-  // upload/remove endpoints below actually change this array.
+  /** Ignored — photos are managed by addProductImage / removeProductImage. */
   images?: ProductImage[];
 };
 
-function nextId(items: { id: number }[]): number {
-  return items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+async function setCategories(tx: Db, productId: number, slugs: string[]) {
+  await tx.query("DELETE FROM product_categories WHERE product_id = $1", [productId]);
+  if (slugs.length === 0) return;
+  await tx.query(
+    `INSERT INTO product_categories (product_id, category_id)
+     SELECT $1, id FROM categories WHERE slug = ANY($2::text[])`,
+    [productId, slugs]
+  );
+}
+
+function productParams(input: ProductInput): unknown[] {
+  return [
+    input.name,
+    input.description,
+    input.shortDescription ?? null,
+    input.price,
+    input.regularPrice,
+    input.salePrice ?? null,
+    input.onSale,
+    input.inStock,
+    input.stockQuantity ?? null,
+    input.averageRating ?? null,
+  ];
 }
 
 export async function createProduct(input: ProductInput): Promise<Product> {
-  const doc = await readCatalog();
-
-  const categories = doc.categories.filter((category) =>
-    input.categorySlugs.includes(category.slug)
-  );
-
-  const product: Product = {
-    ...input,
-    id: nextId(doc.products),
-    slug: uniqueSlug(
-      input.slug || input.name,
-      doc.products.map((p) => p.slug)
-    ),
-    categories,
-    images: input.images ?? [],
-  };
-
-  doc.products.push(product);
-  await writeCatalog(doc);
-  return product;
+  const db = await getDb();
+  const id = await db.transaction(async (tx) => {
+    const taken = await tx.query<{ slug: string }>("SELECT slug FROM products");
+    const slug = uniqueSlug(input.slug || input.name, taken.rows.map((r) => r.slug));
+    const res = await tx.query<{ id: number }>(
+      `INSERT INTO products (name, description, short_description, price, regular_price,
+         sale_price, on_sale, in_stock, stock_quantity, average_rating, slug)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      [...productParams(input), slug]
+    );
+    const newId = num(res.rows[0].id);
+    await setCategories(tx, newId, input.categorySlugs);
+    return newId;
+  });
+  return (await getProductById(id))!;
 }
 
 export async function updateProduct(
   id: number,
   input: ProductInput
 ): Promise<Product | undefined> {
-  const doc = await readCatalog();
-  const index = doc.products.findIndex((product) => product.id === id);
-  if (index === -1) return undefined;
+  const db = await getDb();
+  const found = await db.transaction(async (tx) => {
+    const existing = await tx.query<{ slug: string }>("SELECT slug FROM products WHERE id = $1", [id]);
+    if (existing.rowCount === 0) return false;
 
-  const categories = doc.categories.filter((category) =>
-    input.categorySlugs.includes(category.slug)
-  );
+    let slug = existing.rows[0].slug;
+    if (input.slug && input.slug !== slug) {
+      const others = await tx.query<{ slug: string }>("SELECT slug FROM products WHERE id <> $1", [id]);
+      slug = uniqueSlug(input.slug, others.rows.map((r) => r.slug));
+    }
+    await tx.query(
+      `UPDATE products SET name=$1, description=$2, short_description=$3, price=$4,
+         regular_price=$5, sale_price=$6, on_sale=$7, in_stock=$8, stock_quantity=$9,
+         average_rating=$10, slug=$11 WHERE id=$12`,
+      [...productParams(input), slug, id]
+    );
+    await setCategories(tx, id, input.categorySlugs);
+    return true;
+  });
+  return found ? getProductById(id) : undefined;
+}
 
-  const existing = doc.products[index];
-  const slugChanged = input.slug && input.slug !== existing.slug;
-  const slug = slugChanged
-    ? uniqueSlug(
-        input.slug!,
-        doc.products.filter((p) => p.id !== id).map((p) => p.slug)
-      )
-    : existing.slug;
-
-  const updated: Product = {
-    ...input,
-    id,
-    slug,
-    categories,
-    images: input.images ?? existing.images,
-  };
-  doc.products[index] = updated;
-  await writeCatalog(doc);
-  return updated;
+export async function deleteProduct(id: number): Promise<boolean> {
+  const db = await getDb();
+  const res = await db.query("DELETE FROM products WHERE id = $1", [id]);
+  return res.rowCount > 0;
 }
 
 // ---------------------------------------------------------------------
-// Product image writes — separate from the main form (see ProductInput
-// above), each read-modify-writes just the images array for one product.
+// Product images
 // ---------------------------------------------------------------------
+
+export type NewProductImage = { alt: string; mime: string; data: Buffer };
 
 export async function addProductImage(
   productId: number,
-  image: ProductImage
+  image: NewProductImage
 ): Promise<Product | undefined> {
-  const doc = await readCatalog();
-  const index = doc.products.findIndex((product) => product.id === productId);
-  if (index === -1) return undefined;
-
-  doc.products[index] = {
-    ...doc.products[index],
-    images: [...doc.products[index].images, image],
-  };
-  await writeCatalog(doc);
-  return doc.products[index];
+  const db = await getDb();
+  const exists = await db.query("SELECT 1 FROM products WHERE id = $1", [productId]);
+  if (exists.rowCount === 0) return undefined;
+  await db.query(
+    `INSERT INTO product_images (product_id, alt, mime, data, position)
+     VALUES ($1,$2,$3,$4,(SELECT COALESCE(MAX(position),0)+1 FROM product_images WHERE product_id=$1))`,
+    [productId, image.alt, image.mime, image.data]
+  );
+  return getProductById(productId);
 }
 
 export async function removeProductImage(
   productId: number,
   imageId: number
 ): Promise<{ product: Product; removedImage: ProductImage } | undefined> {
-  const doc = await readCatalog();
-  const index = doc.products.findIndex((product) => product.id === productId);
-  if (index === -1) return undefined;
-
-  const removedImage = doc.products[index].images.find(
-    (image) => image.id === imageId
+  const db = await getDb();
+  const res = await db.query<ImageRow>(
+    "DELETE FROM product_images WHERE id = $1 AND product_id = $2 RETURNING id, product_id, alt",
+    [imageId, productId]
   );
-  if (!removedImage) return undefined;
-
-  doc.products[index] = {
-    ...doc.products[index],
-    images: doc.products[index].images.filter((image) => image.id !== imageId),
+  if (res.rowCount === 0) return undefined;
+  const product = await getProductById(productId);
+  if (!product) return undefined;
+  const row = res.rows[0];
+  return {
+    product,
+    removedImage: { id: num(row.id), src: imageUrl(num(row.id)), alt: row.alt },
   };
-  await writeCatalog(doc);
-  return { product: doc.products[index], removedImage };
 }
 
-export async function deleteProduct(id: number): Promise<boolean> {
-  const doc = await readCatalog();
-  const lengthBefore = doc.products.length;
-  doc.products = doc.products.filter((product) => product.id !== id);
-  if (doc.products.length === lengthBefore) return false;
-  await writeCatalog(doc);
-  return true;
+export async function getProductImageData(
+  imageId: number
+): Promise<{ mime: string; data: Buffer } | undefined> {
+  const db = await getDb();
+  const res = await db.query<{ mime: string; data: unknown }>(
+    "SELECT mime, data FROM product_images WHERE id = $1",
+    [imageId]
+  );
+  if (res.rowCount === 0) return undefined;
+  return { mime: res.rows[0].mime, data: bytes(res.rows[0].data) };
 }
 
 /**
- * Reduces stockQuantity for each item after a verified payment. Only
- * touches products that have a tracked quantity — untracked products
- * (stockQuantity undefined, e.g. made-to-order pieces) are left alone.
- * Clamps at 0 rather than going negative; auto-updates inStock to
- * match. Caller is responsible for idempotency (see verify-payment
- * route — only called once per order, guarded by the existing-order
- * check there).
+ * Reduces stockQuantity after a verified payment — a single atomic
+ * UPDATE per item (no read-modify-write race). Untracked products
+ * (NULL quantity, made-to-order) are untouched; clamps at 0.
  */
 export async function decrementStock(
   items: { productId: number; quantity: number }[]
 ): Promise<void> {
-  const doc = await readCatalog();
-  let changed = false;
-
-  for (const item of items) {
-    const index = doc.products.findIndex((p) => p.id === item.productId);
-    if (index === -1) continue;
-
-    const product = doc.products[index];
-    if (typeof product.stockQuantity !== "number") continue;
-
-    const newQuantity = Math.max(0, product.stockQuantity - item.quantity);
-    doc.products[index] = {
-      ...product,
-      stockQuantity: newQuantity,
-      inStock: newQuantity > 0,
-    };
-    changed = true;
-  }
-
-  if (changed) await writeCatalog(doc);
+  const db = await getDb();
+  await db.transaction(async (tx) => {
+    for (const item of items) {
+      await tx.query(
+        `UPDATE products
+            SET stock_quantity = GREATEST(0, stock_quantity - $2),
+                in_stock = GREATEST(0, stock_quantity - $2) > 0
+          WHERE id = $1 AND stock_quantity IS NOT NULL`,
+        [item.productId, item.quantity]
+      );
+    }
+  });
 }
 
 // ---------------------------------------------------------------------
 // Category writes
 // ---------------------------------------------------------------------
 
-export type CategoryInput = {
-  name: string;
-  description?: string;
-  slug?: string;
-};
+export type CategoryInput = { name: string; description?: string; slug?: string };
 
 export async function createCategory(input: CategoryInput): Promise<Category> {
-  const doc = await readCatalog();
-
-  const category: Category = {
-    id: nextId(doc.categories),
-    name: input.name,
-    description: input.description,
-    slug: uniqueSlug(
-      input.slug || input.name,
-      doc.categories.map((c) => c.slug)
-    ),
-  };
-
-  doc.categories.push(category);
-  await writeCatalog(doc);
-  return category;
+  const db = await getDb();
+  const row = await db.transaction(async (tx) => {
+    const taken = await tx.query<{ slug: string }>("SELECT slug FROM categories");
+    const slug = uniqueSlug(input.slug || input.name, taken.rows.map((r) => r.slug));
+    const res = await tx.query<CategoryRow>(
+      "INSERT INTO categories (name, slug, description) VALUES ($1,$2,$3) RETURNING *",
+      [input.name, slug, input.description ?? null]
+    );
+    return res.rows[0];
+  });
+  return toCategory(row);
 }
 
 export async function deleteCategory(id: number): Promise<boolean> {
-  const doc = await readCatalog();
-  const target = doc.categories.find((category) => category.id === id);
-  if (!target) return false;
-
-  doc.categories = doc.categories.filter((category) => category.id !== id);
-  // Also drop this category from any product that referenced it, so the
-  // catalogue never has a dangling category reference.
-  doc.products = doc.products.map((product) => ({
-    ...product,
-    categories: product.categories.filter((c) => c.id !== id),
-  }));
-
-  await writeCatalog(doc);
-  return true;
+  const db = await getDb();
+  // product_categories rows cascade, so no product keeps a dangling reference.
+  const res = await db.query("DELETE FROM categories WHERE id = $1", [id]);
+  return res.rowCount > 0;
 }

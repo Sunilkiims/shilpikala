@@ -24,6 +24,10 @@ export function isolateStorageDir(): () => void {
   process.chdir(dir);
   vi.resetModules();
 
+  // The database lives on globalThis (so it survives module resets);
+  // wipe it so each test starts from a fresh, freshly-seeded database.
+  (globalThis as { __shilpikalaDbWipe?: boolean }).__shilpikalaDbWipe = true;
+
   return () => {
     process.chdir(originalCwd);
     rmSync(dir, { recursive: true, force: true });

@@ -1,7 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { Address } from "@/types/catalog";
 import type { PricedLineItem } from "@/lib/checkout/pricing";
+import { getDb } from "@/lib/db";
 
 /**
  * A snapshot of exactly what was priced and charged when a Razorpay
@@ -13,12 +12,8 @@ import type { PricedLineItem } from "@/lib/checkout/pricing";
  *   - a valid payment can always be recorded, even if the product has
  *     since sold out or been deleted.
  *
- * Same whole-file JSON-Lines pattern as the reviews store. Unpaid
- * snapshots (abandoned checkouts) are pruned on each write.
+ * Unpaid snapshots (abandoned checkouts) are pruned on each write.
  */
-
-const STORAGE_DIR = path.join(process.cwd(), "storage");
-const PENDING_FILE = path.join(STORAGE_DIR, "pending-orders.jsonl");
 
 /** Abandoned-checkout snapshots older than this are dropped. */
 export const PENDING_ORDER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -32,53 +27,39 @@ export type PendingOrder = {
   amount: number;
   amountInPaise: number;
   customerEmail: string;
+  /** Signed-in buyer, if any (resolved server-side from the session). */
+  customerId?: number;
   address: Address;
   createdAt: string;
 };
 
-async function readAll(): Promise<PendingOrder[]> {
-  try {
-    const raw = await readFile(PENDING_FILE, "utf8");
-    return raw
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as PendingOrder);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-}
-
-async function writeAll(orders: PendingOrder[]): Promise<void> {
-  await mkdir(STORAGE_DIR, { recursive: true });
-  const content = orders.map((order) => JSON.stringify(order)).join("\n");
-  await writeFile(PENDING_FILE, content ? `${content}\n` : "", "utf8");
-}
-
 export async function savePendingOrder(order: PendingOrder): Promise<void> {
-  const cutoff = Date.now() - PENDING_ORDER_TTL_MS;
-  const existing = await readAll();
-
-  const kept = existing.filter(
-    (candidate) =>
-      new Date(candidate.createdAt).getTime() >= cutoff &&
-      candidate.razorpayOrderId !== order.razorpayOrderId
-  );
-
-  await writeAll([...kept, order]);
+  const db = await getDb();
+  const cutoff = new Date(Date.now() - PENDING_ORDER_TTL_MS).toISOString();
+  await db.transaction(async (tx) => {
+    await tx.query("DELETE FROM pending_orders WHERE created_at < $1", [cutoff]);
+    await tx.query(
+      `INSERT INTO pending_orders (razorpay_order_id, data, created_at)
+       VALUES ($1,$2::jsonb,$3)
+       ON CONFLICT (razorpay_order_id) DO UPDATE SET data = EXCLUDED.data, created_at = EXCLUDED.created_at`,
+      [order.razorpayOrderId, JSON.stringify(order), order.createdAt]
+    );
+  });
 }
 
 export async function getPendingOrder(
   razorpayOrderId: string
 ): Promise<PendingOrder | undefined> {
-  const orders = await readAll();
-  return orders.find((order) => order.razorpayOrderId === razorpayOrderId);
+  const db = await getDb();
+  const res = await db.query<{ data: PendingOrder }>(
+    "SELECT data FROM pending_orders WHERE razorpay_order_id = $1",
+    [razorpayOrderId]
+  );
+  return res.rows[0]?.data;
 }
 
 /** Best-effort cleanup once an order has been recorded. */
 export async function deletePendingOrder(razorpayOrderId: string): Promise<void> {
-  const orders = await readAll();
-  const remaining = orders.filter((order) => order.razorpayOrderId !== razorpayOrderId);
-  if (remaining.length !== orders.length) await writeAll(remaining);
+  const db = await getDb();
+  await db.query("DELETE FROM pending_orders WHERE razorpay_order_id = $1", [razorpayOrderId]);
 }

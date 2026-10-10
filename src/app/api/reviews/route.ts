@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "already_reviewed" }, { status: 409 });
   }
 
-  await appendReview({
+  const stored = await appendReview({
     id: randomUUID(),
     productId,
     orderId,
@@ -79,6 +79,11 @@ export async function POST(request: Request) {
     status: "pending",
     createdAt: new Date().toISOString(),
   });
+  // The DB's UNIQUE (order, product) constraint closes the race between
+  // the check above and this insert.
+  if (!stored) {
+    return NextResponse.json({ error: "already_reviewed" }, { status: 409 });
+  }
 
   return NextResponse.json({ submitted: true }, { status: 201 });
 }
