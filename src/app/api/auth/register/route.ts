@@ -3,7 +3,7 @@ import { createAuthToken, createCustomer, createSession } from "@/lib/auth/custo
 import { limitAttempts, readJson } from "@/lib/auth/guard";
 import { sessionCookieHeader } from "@/lib/auth/session";
 import { cleanEmail, cleanName, validatePassword } from "@/lib/auth/validation";
-import { siteConfig } from "@/lib/config/site";
+import { emailLink } from "@/lib/config/emailLinks";
 import { sendEmail } from "@/lib/email/send";
 import { verifyEmailEmail } from "@/lib/email/templates";
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const verifyToken = await createAuthToken(customer.id, "verify-email");
-  const url = `${siteConfig.url}/account/verify-email?token=${verifyToken}`;
+  const url = emailLink(`/account/verify-email?token=${verifyToken}`);
   const mail = verifyEmailEmail(customer.name, url);
   await sendEmail({ to: customer.email, ...mail });
 

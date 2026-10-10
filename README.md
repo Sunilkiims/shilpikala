@@ -38,8 +38,9 @@ Useful commands:
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Generates Next route types, then `tsc --noEmit` |
 | `npm test` | Vitest suite (uses an in-memory database; never touches your data) |
+| `npm run db:check` | Shows which database the app is using (PostgreSQL or embedded) and row counts per table |
 | `npm run db:migrate` | Apply database migrations up front (the app also does this automatically on first use) |
-| `npm run db:import-legacy` | One-off import from the old file-based storage (see §3.3) |
+| `npm run db:import-legacy` | One-off import from the old file-based storage (see §3.4) |
 
 ## 2. Environment variables
 
@@ -47,7 +48,7 @@ All are documented in [`.env.example`](./.env.example). **Never commit real valu
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Yes (prod) | Public URL, no trailing slash. Canonical URLs, sitemap, links in emails. |
+| `NEXT_PUBLIC_SITE_URL` | Yes (prod) | Public URL, no trailing slash. Canonical URLs, sitemap, and **the links inside password-reset and verification emails**. If left as `http://localhost:3000`, those links only work on the computer running the site. |
 | `DATABASE_URL` | **Yes (prod)** | PostgreSQL connection string. Empty ⇒ embedded dev database. |
 | `DATABASE_SSL` | If provider needs it | `true` to connect with SSL (most managed Postgres). |
 | `DATABASE_POOL_MAX` | No | Connections per instance (default 5; use 1–3 on serverless). |
@@ -66,14 +67,20 @@ All are documented in [`.env.example`](./.env.example). **Never commit real valu
 * Tables: `categories`, `products`, `product_categories`, `product_images` (photo bytes), `customers`, `sessions`, `auth_tokens`, `orders`, `pending_orders`, `unreconciled_payments`, `reviews`, `inquiries`, `blog_posts`, `meta`.
 * The starter catalogue (`src/data/`) is inserted **once** per database; deleting all products later does not bring it back.
 
-### 3.2 Production setup
+### 3.2 Making sure data goes to PostgreSQL
+
+Set `DATABASE_URL` in `.env.local` (development) and in your host's environment (production), then run `npm run db:check`. It must print `Backend: PostgreSQL` and your host name. If it prints `EMBEDDED`, `DATABASE_URL` is not being read (check the file is named exactly `.env.local`, is in the project root, and the dev server was restarted).
+
+In production the app refuses to start without `DATABASE_URL`, so data can never silently go anywhere else.
+
+### 3.3 Production setup
 
 1. Create a PostgreSQL database (Neon, Supabase, Railway, RDS, or your own server).
 2. Set `DATABASE_URL` (and `DATABASE_SSL=true` if required) in your host's environment.
 3. `npm run build` needs the database reachable at build time (pages are pre-rendered from the catalogue). On first request/boot the tables are created.
 4. Back up the database regularly — it holds your orders, customers **and product photos**.
 
-### 3.3 Coming from the old file-based version
+### 3.4 Coming from the old file-based version
 
 If your running site still has `storage/catalog.json`, `storage/*.jsonl` and photos in `public/images/products/`:
 

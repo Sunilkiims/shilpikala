@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "tsx --tsconfig tsconfig.json scripts/db-migrate.ts",
-    "db:import-legacy": "tsx --tsconfig tsconfig.json scripts/import-legacy.ts"
+    "db:import-legacy": "tsx --tsconfig tsconfig.json scripts/import-legacy.ts",
+    "db:check": "tsx --tsconfig tsconfig.json scripts/db-check.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

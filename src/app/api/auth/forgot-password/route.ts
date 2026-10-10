@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAuthToken, getCustomerByEmail } from "@/lib/auth/customers";
 import { limitAttempts, readJson } from "@/lib/auth/guard";
 import { cleanEmail } from "@/lib/auth/validation";
-import { siteConfig } from "@/lib/config/site";
+import { emailLink } from "@/lib/config/emailLinks";
 import { sendEmail } from "@/lib/email/send";
 import { passwordResetEmail } from "@/lib/email/templates";
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const customer = await getCustomerByEmail(email);
   if (customer) {
     const token = await createAuthToken(customer.id, "reset-password");
-    const mail = passwordResetEmail(`${siteConfig.url}/account/reset-password?token=${token}`);
+    const mail = passwordResetEmail(emailLink(`/account/reset-password?token=${token}`));
     await sendEmail({ to: customer.email, ...mail });
   }
   return NextResponse.json({ ok: true });
