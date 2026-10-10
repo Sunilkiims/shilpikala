@@ -42,13 +42,13 @@ export default async function AdminReviewsPage() {
               <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
                 <p className="text-sm text-charcoal">
                   {productNames.get(review.productId) ?? `Product #${review.productId}`}
-                  <span className="text-earth-brown/60">
+                  <span className="text-earth-brown/70">
                     {" "}
                     — {"★".repeat(review.rating)}
                     {"☆".repeat(5 - review.rating)} by {review.authorName}
                   </span>
                 </p>
-                <p className="text-xs text-earth-brown/55">
+                <p className="text-xs text-earth-brown/70">
                   {statusLabel[review.status]} · {formatDate(review.createdAt)}
                 </p>
               </div>
@@ -57,7 +57,7 @@ export default async function AdminReviewsPage() {
                 {review.content}
               </p>
 
-              <p className="mt-3 text-xs text-earth-brown/50">
+              <p className="mt-3 text-xs text-earth-brown/70">
                 {review.customerEmail} · order {review.orderId}
               </p>
 

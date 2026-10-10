@@ -196,7 +196,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
               value={stockQuantity}
               onChange={(e) => setStockQuantity(e.target.value)}
             />
-            <span className="mt-1 block text-xs text-earth-brown/55">
+            <span className="mt-1 block text-xs text-earth-brown/70">
               Decreases automatically after each paid order.
             </span>
           </label>

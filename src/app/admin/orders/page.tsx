@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/Container";
 import { formatPrice } from "@/lib/utils/currency";
+import { OrderFulfilmentForm } from "@/components/admin/OrderFulfilmentForm";
 import { getAllOrders } from "@/lib/orders/store";
 
 export const metadata: Metadata = {
@@ -40,12 +41,12 @@ export default async function AdminOrdersPage() {
               <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
                 <p className="text-sm text-charcoal">
                   {order.address.fullName}{" "}
-                  <span className="text-earth-brown/60">
+                  <span className="text-earth-brown/70">
                     — {order.address.city}, {order.address.state}
                     {order.customerEmail && ` · ${order.customerEmail}`}
                   </span>
                 </p>
-                <p className="text-xs text-earth-brown/55">
+                <p className="text-xs text-earth-brown/70">
                   {formatDate(order.createdAt)}
                 </p>
               </div>
@@ -66,7 +67,7 @@ export default async function AdminOrdersPage() {
                 ))}
               </ul>
 
-              <div className="mt-2 flex items-center justify-between text-xs text-earth-brown/55">
+              <div className="mt-2 flex items-center justify-between text-xs text-earth-brown/70">
                 <span>Shipping</span>
                 <span>
                   {order.shipping === 0
@@ -75,8 +76,15 @@ export default async function AdminOrdersPage() {
                 </span>
               </div>
 
+              <OrderFulfilmentForm
+                orderId={order.id}
+                status={order.status}
+                trackingNumber={order.trackingNumber}
+                carrier={order.carrier}
+              />
+
               <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
-                <p className="text-earth-brown/55">
+                <p className="text-earth-brown/70">
                   {order.razorpayOrderId} · {order.razorpayPaymentId}
                 </p>
                 <p className="text-charcoal">{formatPrice(String(order.amount))}</p>

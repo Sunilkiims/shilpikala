@@ -2,20 +2,24 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 
 const adminNav = [
+  { label: "Dashboard", href: "/admin" },
   { label: "Orders", href: "/admin/orders" },
   { label: "Products", href: "/admin/products" },
   { label: "Categories", href: "/admin/categories" },
   { label: "Reviews", href: "/admin/reviews" },
+  { label: "Inquiries", href: "/admin/inquiries" },
+  { label: "Blog", href: "/admin/blog" },
+  { label: "Payments", href: "/admin/payments" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>
       <div className="border-b border-earth-brown/15 bg-ivory">
-        <Container className="flex h-14 items-center gap-6">
-          <span className="text-sm text-earth-brown/50">Admin</span>
+        <Container className="flex min-h-14 flex-wrap items-center gap-x-6">
+          <span className="text-sm text-earth-brown/70">Admin</span>
           <nav aria-label="Admin">
-            <ul className="flex items-center gap-6">
+            <ul className="flex flex-wrap items-center gap-x-6 gap-y-1 py-2">
               {adminNav.map((item) => (
                 <li key={item.href}>
                   <Link

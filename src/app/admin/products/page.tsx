@@ -37,7 +37,7 @@ export default async function AdminProductsPage() {
           >
             <div>
               <p className="text-sm text-charcoal">{product.name}</p>
-              <p className="mt-1 text-xs text-earth-brown/55">
+              <p className="mt-1 text-xs text-earth-brown/70">
                 {product.categories.map((c) => c.name).join(", ") || "Uncategorized"}
                 {" · "}
                 {typeof product.stockQuantity === "number"

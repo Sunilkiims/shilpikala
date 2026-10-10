@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "next typegen && tsc --noEmit",
+    "db:migrate": "tsx --tsconfig tsconfig.json scripts/db-migrate.ts",
+    "db:import-legacy": "tsx --tsconfig tsconfig.json scripts/import-legacy.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
@@ -30,5 +33,8 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=20.9"
   }
 }

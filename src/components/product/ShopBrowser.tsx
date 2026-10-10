@@ -52,14 +52,14 @@ export function ShopBrowser({ products, categories }: ShopBrowserProps) {
   return (
     <div>
       <label className="relative block max-w-xs">
-        <SearchIcon className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-earth-brown/50" />
+        <SearchIcon className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-earth-brown/70" />
         <span className="sr-only">Search products</span>
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search products…"
-          className="w-full border-0 border-b border-earth-brown/25 bg-transparent py-2 pl-6 text-sm text-charcoal outline-none placeholder:text-earth-brown/45 focus-visible:border-terracotta"
+          className="w-full border-0 border-b border-earth-brown/25 bg-transparent py-2 pl-6 text-sm text-charcoal outline-none placeholder:text-earth-brown/70 focus-visible:border-terracotta"
         />
       </label>
 

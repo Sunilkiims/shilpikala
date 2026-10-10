@@ -40,7 +40,7 @@ export function DeleteButton({
       type="button"
       onClick={handleClick}
       disabled={deleting}
-      className="text-xs text-earth-brown/55 transition-colors hover:text-terracotta disabled:opacity-50"
+      className="text-xs text-earth-brown/70 transition-colors hover:text-terracotta disabled:opacity-50"
     >
       {deleting ? "Deleting…" : label}
     </button>

@@ -75,7 +75,7 @@ export function CartView() {
               type="button"
               onClick={() => removeItem(item.productId)}
               aria-label={`Remove ${item.name} from cart`}
-              className="text-xs text-earth-brown/55 transition-colors hover:text-terracotta"
+              className="text-xs text-earth-brown/70 transition-colors hover:text-terracotta"
             >
               Remove
             </button>
@@ -93,7 +93,7 @@ export function CartView() {
           <span>{shipping === 0 ? "Free" : formatPrice(String(shipping))}</span>
         </div>
         {shipping > 0 && (
-          <p className="mt-2 text-xs text-earth-brown/55">
+          <p className="mt-2 text-xs text-earth-brown/70">
             Free shipping on orders over{" "}
             {formatPrice(String(shippingConfig.freeShippingThresholdInRupees))}.
           </p>

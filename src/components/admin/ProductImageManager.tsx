@@ -119,7 +119,7 @@ export function ProductImageManager({
             className="hidden"
           />
         </label>
-        <p className="mt-1 text-xs text-earth-brown/55">
+        <p className="mt-1 text-xs text-earth-brown/70">
           JPEG, PNG, WebP, or GIF — 5MB max.
         </p>
       </div>

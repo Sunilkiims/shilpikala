@@ -18,7 +18,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
         <div className="mt-4">
           {primaryCategory && (
-            <p className="text-xs tracking-wide text-earth-brown/55">
+            <p className="text-xs tracking-wide text-earth-brown/70">
               {primaryCategory.name}
             </p>
           )}
@@ -33,7 +33,7 @@ export function ProductCard({ product }: ProductCardProps) {
                 <span className="text-sm text-terracotta">
                   {formatPrice(product.salePrice)}
                 </span>
-                <span className="text-sm text-earth-brown/50 line-through">
+                <span className="text-sm text-earth-brown/70 line-through">
                   {formatPrice(product.regularPrice)}
                 </span>
               </>
@@ -45,7 +45,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {!product.inStock && (
-            <p className="mt-2 text-xs text-earth-brown/55">Out of stock</p>
+            <p className="mt-2 text-xs text-earth-brown/70">Out of stock</p>
           )}
         </div>
       </Link>

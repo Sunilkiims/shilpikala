@@ -45,7 +45,7 @@ export function ReviewModerationActions({ reviewId }: ReviewModerationActionsPro
         type="button"
         onClick={() => setStatus("rejected")}
         disabled={pending !== null}
-        className="text-xs text-earth-brown/55 transition-colors hover:text-terracotta disabled:opacity-50"
+        className="text-xs text-earth-brown/70 transition-colors hover:text-terracotta disabled:opacity-50"
       >
         {pending === "rejected" ? "Rejecting…" : "Reject"}
       </button>

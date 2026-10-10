@@ -31,7 +31,7 @@ export default async function AdminCategoriesPage() {
             >
               <div>
                 <p className="text-sm text-charcoal">{category.name}</p>
-                <p className="mt-1 text-xs text-earth-brown/55">
+                <p className="mt-1 text-xs text-earth-brown/70">
                   {category.slug} · {count} {count === 1 ? "product" : "products"}
                 </p>
               </div>

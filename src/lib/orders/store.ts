@@ -83,18 +83,32 @@ export async function getAllOrders(): Promise<StoredOrder[]> {
   return res.rows.map(toOrder);
 }
 
-/** Orders belonging to an account: linked by id, or placed with the same verified email. */
+/**
+ * Orders belonging to an account: always those linked by customer id;
+ * plus guest orders placed with the same email — but ONLY when that
+ * email is verified, otherwise anyone could register with someone
+ * else's address and read their orders.
+ */
 export async function getOrdersForCustomer(
   customerId: number,
-  email: string
+  verifiedEmail: string | null
 ): Promise<StoredOrder[]> {
   const db = await getDb();
   const res = await db.query<OrderRow>(
-    `SELECT * FROM orders WHERE customer_id = $1 OR lower(customer_email) = lower($2)
+    `SELECT * FROM orders WHERE customer_id = $1 OR ($2::text IS NOT NULL AND lower(customer_email) = lower($2))
       ORDER BY created_at DESC`,
-    [customerId, email]
+    [customerId, verifiedEmail]
   );
   return res.rows.map(toOrder);
+}
+
+/** What an account page may show: guest orders by email only when that email is verified. */
+export function getOrdersForAccount(customer: {
+  id: number;
+  email: string;
+  emailVerified: boolean;
+}): Promise<StoredOrder[]> {
+  return getOrdersForCustomer(customer.id, customer.emailVerified ? customer.email : null);
 }
 
 export async function updateOrderFulfilment(

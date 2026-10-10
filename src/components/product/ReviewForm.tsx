@@ -95,7 +95,7 @@ export function ReviewForm({ productId }: ReviewFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="grid max-w-sm gap-4">
-      <p className="text-xs text-earth-brown/60">
+      <p className="text-xs text-earth-brown/70">
         Reviews are limited to verified purchases — enter the order reference
         and email from your confirmation.
       </p>
@@ -165,7 +165,7 @@ export function ReviewForm({ productId }: ReviewFormProps) {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-sm text-earth-brown/60 hover:text-terracotta"
+          className="text-sm text-earth-brown/70 hover:text-terracotta"
         >
           Cancel
         </button>

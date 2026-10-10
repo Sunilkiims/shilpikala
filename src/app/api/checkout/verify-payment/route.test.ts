@@ -378,6 +378,10 @@ describe("POST /api/checkout/verify-payment — a genuine payment with no snapsh
     expect(await orderStore.getAllOrders()).toHaveLength(0);
     expect(sendEmail).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("RECONCILE"));
+    // ...and the genuine payment is durably logged for the admin to resolve.
+    expect(await orderStore.listUnreconciledPayments()).toMatchObject([
+      { razorpayOrderId: "order_1", resolved: false },
+    ]);
   });
 });
 

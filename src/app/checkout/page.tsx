@@ -3,6 +3,7 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
+import { getCurrentCustomer } from "@/lib/auth/session";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
 
 export const metadata: Metadata = buildMetadata({
@@ -11,7 +12,8 @@ export const metadata: Metadata = buildMetadata({
   path: "/checkout",
 });
 
-export default function CheckoutPage() {
+export default async function CheckoutPage() {
+  const customer = await getCurrentCustomer();
   return (
     <Container className="py-12 sm:py-16">
       <Breadcrumbs
@@ -27,7 +29,9 @@ export default function CheckoutPage() {
       </div>
 
       <div className="mt-10">
-        <CheckoutForm />
+        <CheckoutForm
+          prefill={customer ? { email: customer.email, address: customer.address } : undefined}
+        />
       </div>
     </Container>
   );

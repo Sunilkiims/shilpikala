@@ -72,10 +72,10 @@ export function TrackOrderForm() {
   if (order) {
     return (
       <div className="max-w-sm">
-        <p className="text-xs text-earth-brown/55">
+        <p className="text-xs text-earth-brown/70">
           Order reference: <span className="text-charcoal">{order.id}</span>
         </p>
-        <p className="mt-1 text-xs text-earth-brown/55">
+        <p className="mt-1 text-xs text-earth-brown/70">
           Placed {formatDate(order.createdAt)} · {order.status === "paid" ? "Paid" : order.status}
         </p>
 

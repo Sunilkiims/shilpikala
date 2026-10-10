@@ -37,13 +37,18 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-export function CheckoutForm() {
+type CheckoutFormProps = {
+  /** Signed-in customer's saved details (plain data — no callbacks cross the server/client boundary). */
+  prefill?: { email: string; address?: Address };
+};
+
+export function CheckoutForm({ prefill }: CheckoutFormProps = {}) {
   const router = useRouter();
   const { items, subtotal, clear } = useCart();
   const shipping = calculateShipping(subtotal);
   const total = subtotal + shipping;
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState<Address>(initialAddress);
+  const [email, setEmail] = useState(prefill?.email ?? "");
+  const [address, setAddress] = useState<Address>({ ...initialAddress, ...prefill?.address });
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -260,7 +265,7 @@ export function CheckoutForm() {
           <span>{shipping === 0 ? "Free" : formatPrice(String(shipping))}</span>
         </div>
         {shipping > 0 && (
-          <p className="mt-2 text-xs text-earth-brown/55">
+          <p className="mt-2 text-xs text-earth-brown/70">
             Free shipping on orders over{" "}
             {formatPrice(String(shippingConfig.freeShippingThresholdInRupees))}.
           </p>

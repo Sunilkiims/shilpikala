@@ -44,7 +44,7 @@ export function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col-reverse items-center gap-6 border-t border-earth-brown/15 pt-8 sm:flex-row sm:justify-between">
-          <p className="text-xs text-earth-brown/60">
+          <p className="text-xs text-earth-brown/70">
             © {year} {siteConfig.name}. All rights reserved.
           </p>
 

@@ -21,6 +21,19 @@ export const siteConfig = {
     address: "India",
   },
 
+  /**
+   * Business terms quoted on the About / Shipping / Returns / FAQ pages.
+   * Edit here — the copy on those pages is generated from these values.
+   */
+  business: {
+    legalName: "ShilpiKala",
+    dispatchTime: "2–4 business days",
+    deliveryTime: "5–10 business days within India",
+    customOrderLeadTime: "3–5 weeks",
+    returnWindowDays: 7,
+    shipsTo: "India",
+  },
+
   social: [
     { label: "Instagram", href: "https://instagram.com/shilpikala" },
     { label: "Facebook", href: "https://facebook.com/shilpikala" },

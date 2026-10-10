@@ -3,6 +3,7 @@ import { isRazorpayConfigured } from "@/lib/razorpay/config";
 import { getRazorpayClient } from "@/lib/razorpay/client";
 import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
 import { sanitizeAddress } from "@/lib/checkout/address";
+import { getCustomerFromRequest } from "@/lib/auth/session";
 import { savePendingOrder } from "@/lib/orders/pendingStore";
 import { isValidEmail } from "@/lib/utils/email";
 
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_email" }, { status: 400 });
   }
   const email = body.email;
+  const customer = await getCustomerFromRequest(request);
 
   let totals;
   try {
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
       amount: totals.amountInRupees,
       amountInPaise,
       customerEmail: email,
+      ...(customer ? { customerId: customer.id } : {}),
       address,
       createdAt: new Date().toISOString(),
     });

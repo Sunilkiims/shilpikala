@@ -45,7 +45,7 @@ export default async function CategoriesPage() {
                     {category.description}
                   </p>
                 )}
-                <p className="mt-3 text-xs text-earth-brown/50">
+                <p className="mt-3 text-xs text-earth-brown/70">
                   {count} {count === 1 ? "piece" : "pieces"}
                 </p>
               </Link>

@@ -87,7 +87,7 @@ export default async function ProductPage({ params }: PageProps) {
 
         <div>
           {primaryCategory && (
-            <p className="text-xs tracking-wide text-earth-brown/55">
+            <p className="text-xs tracking-wide text-earth-brown/70">
               {primaryCategory.name}
             </p>
           )}
@@ -102,7 +102,7 @@ export default async function ProductPage({ params }: PageProps) {
                 <span className="text-xl text-terracotta">
                   {formatPrice(product.salePrice)}
                 </span>
-                <span className="text-base text-earth-brown/50 line-through">
+                <span className="text-base text-earth-brown/70 line-through">
                   {formatPrice(product.regularPrice)}
                 </span>
               </>
@@ -121,7 +121,7 @@ export default async function ProductPage({ params }: PageProps) {
             {product.inStock ? (
               <AddToCartForm product={product} />
             ) : (
-              <p className="text-sm text-earth-brown/60">
+              <p className="text-sm text-earth-brown/70">
                 Currently out of stock.
               </p>
             )}

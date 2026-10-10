@@ -43,7 +43,7 @@ export function ReviewsSection({ productId, reviews }: ReviewsSectionProps) {
             <li key={review.id} className="py-6">
               <div className="flex items-center justify-between">
                 <StarRating rating={review.rating} />
-                <span className="text-xs text-earth-brown/55">
+                <span className="text-xs text-earth-brown/70">
                   {formatDate(review.createdAt)}
                 </span>
               </div>

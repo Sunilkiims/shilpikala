@@ -48,16 +48,9 @@ async function boot(): Promise<{ kind: State["kind"]; db: Db }> {
 
 function ensure(): State {
   const key = currentKey();
-  if (g.__shilpikalaDbWipe && g.__shilpikalaDb) {
-    // Reuse the (expensive) engine, just start from an empty schema.
-    const old = g.__shilpikalaDb;
-    old.ready = old.ready.then(async (db) => {
-      await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
-      await migrate(db);
-      return db;
-    });
-  }
+  const wipe = g.__shilpikalaDbWipe === true;
   g.__shilpikalaDbWipe = false;
+
   if (!g.__shilpikalaDb || g.__shilpikalaDb.key !== key) {
     const pending = boot();
     const state: State = {
@@ -71,7 +64,18 @@ function ensure(): State {
     });
     g.__shilpikalaDb = state;
   }
-  return g.__shilpikalaDb;
+
+  const state = g.__shilpikalaDb;
+  if (wipe) {
+    // Test isolation. Applies to a freshly-booted instance too: a real
+    // PostgreSQL database may still hold data from a previous test process.
+    state.ready = state.ready.then(async (db) => {
+      await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+      await migrate(db);
+      return db;
+    });
+  }
+  return state;
 }
 
 export function getDb(): Promise<Db> {

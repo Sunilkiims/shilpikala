@@ -30,7 +30,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
 
       {order ? (
         <div className="mt-8 w-full max-w-sm text-left">
-          <p className="text-xs text-earth-brown/55">
+          <p className="text-xs text-earth-brown/70">
             Order reference: <span className="text-charcoal">{order.id}</span>
           </p>
           <ul className="mt-4 divide-y divide-earth-brown/15 border-y border-earth-brown/15">
@@ -66,7 +66,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
             Shipping to {order.address.fullName}, {order.address.city},{" "}
             {order.address.state}
           </p>
-          <p className="mt-6 text-xs text-earth-brown/55">
+          <p className="mt-6 text-xs text-earth-brown/70">
             Save your order reference above — you can look this order up
             any time at{" "}
             <Link href="/track-order" className="text-terracotta hover:text-terracotta-deep">

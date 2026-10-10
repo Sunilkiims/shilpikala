@@ -2,7 +2,7 @@ import type { StoredOrder } from "@/lib/orders/types";
 import { formatPrice } from "@/lib/utils/currency";
 import { siteConfig } from "@/lib/config/site";
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -39,7 +39,7 @@ function itemsTable(order: StoredOrder): string {
     </table>`;
 }
 
-function baseLayout(bodyHtml: string): string {
+export function baseLayout(bodyHtml: string): string {
   return `
     <div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
       <p style="font-family:Georgia,serif;font-size:18px;color:#a65335;margin:0 0 16px;">${escapeHtml(siteConfig.name)}</p>
@@ -91,5 +91,67 @@ export function adminOrderAlertEmail(order: StoredOrder): {
   return {
     subject: `New order from ${order.address.fullName}`,
     html,
+  };
+}
+
+function actionEmail(heading: string, intro: string, buttonLabel: string, url: string, footnote: string) {
+  return baseLayout(`
+    <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">${escapeHtml(heading)}</h1>
+    <p style="font-size:14px;color:#4a3027;line-height:1.6;margin:0 0 20px;">${escapeHtml(intro)}</p>
+    <p style="margin:0 0 20px;"><a href="${escapeHtml(url)}" style="background:#a65335;color:#fff;padding:10px 20px;text-decoration:none;font-size:14px;">${escapeHtml(buttonLabel)}</a></p>
+    <p style="font-size:12px;color:#7a6c5d;line-height:1.6;margin:0;">${escapeHtml(footnote)}</p>
+  `);
+}
+
+export function verifyEmailEmail(name: string, url: string) {
+  return {
+    subject: `Confirm your ${siteConfig.name} email`,
+    html: actionEmail(
+      `Welcome, ${name}`,
+      "Please confirm your email address to finish setting up your account.",
+      "Confirm email",
+      url,
+      "This link expires in 3 days. If you didn't create an account, you can ignore this email."
+    ),
+  };
+}
+
+export function passwordResetEmail(url: string) {
+  return {
+    subject: `Reset your ${siteConfig.name} password`,
+    html: actionEmail(
+      "Reset your password",
+      "We received a request to reset your password. Use the button below to choose a new one.",
+      "Choose a new password",
+      url,
+      "This link expires in 1 hour and works once. If you didn't ask for this, you can ignore this email."
+    ),
+  };
+}
+
+export function orderShippedEmail(order: StoredOrder) {
+  const tracking = order.trackingNumber
+    ? `<p style="font-size:14px;color:#24211e;margin:0 0 12px;">${order.carrier ? `${escapeHtml(order.carrier)} · ` : ""}Tracking number: <strong>${escapeHtml(order.trackingNumber)}</strong></p>`
+    : "";
+  return {
+    subject: `Your ${siteConfig.name} order is on its way`,
+    html: baseLayout(`
+      <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">Your order has shipped</h1>
+      <p style="font-size:14px;color:#4a3027;line-height:1.6;margin:0 0 16px;">Hi ${escapeHtml(order.address.fullName)}, your order is on its way.</p>
+      ${tracking}
+      <p style="font-size:12px;color:#7a6c5d;margin:16px 0 0;">Order reference: ${escapeHtml(order.id)}</p>
+    `),
+  };
+}
+
+export function inquiryAlertEmail(input: { kind: string; name: string; email: string; subject?: string; message: string }) {
+  return {
+    subject: `New ${input.kind} inquiry from ${input.name}`,
+    html: baseLayout(`
+      <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:normal;color:#24211e;margin:0 0 12px;">New ${escapeHtml(input.kind)} inquiry</h1>
+      <p style="font-size:14px;color:#4a3027;margin:0 0 8px;">${escapeHtml(input.name)} &lt;${escapeHtml(input.email)}&gt;</p>
+      ${input.subject ? `<p style="font-size:14px;color:#24211e;margin:0 0 8px;"><strong>${escapeHtml(input.subject)}</strong></p>` : ""}
+      <p style="font-size:14px;color:#24211e;line-height:1.6;white-space:pre-wrap;margin:0;">${escapeHtml(input.message)}</p>
+    `),
   };
 }
