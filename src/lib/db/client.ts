@@ -18,12 +18,61 @@ export type Db = {
   transaction<T>(fn: (tx: Db) => Promise<T>): Promise<T>;
 };
 
+export type PgConnectionSettings = {
+  connectionString: string;
+  ssl: boolean | { rejectUnauthorized: boolean };
+};
+
+/**
+ * Turns DATABASE_URL (+ DATABASE_SSL) into explicit pg settings.
+ *
+ * `sslmode=` is removed from the URL and replaced by an explicit `ssl`
+ * option: newer versions of `pg` print a security warning for
+ * `sslmode=require` and let the URL override our setting.
+ *   - SSL is on if DATABASE_SSL is "true"/"require"/"no-verify" or the URL asks for it.
+ *   - The server certificate is verified unless DATABASE_SSL=no-verify
+ *     (only for providers with self-signed certificates).
+ */
+export function buildPgSettings(
+  url: string,
+  sslEnv: string | undefined = process.env.DATABASE_SSL
+): PgConnectionSettings {
+  let sslFromUrl = false;
+  let connectionString = url;
+  try {
+    const parsed = new URL(url);
+    const mode = parsed.searchParams.get("sslmode");
+    if (mode !== null) {
+      sslFromUrl = mode !== "disable" && mode !== "allow";
+      parsed.searchParams.delete("sslmode");
+      connectionString = parsed.toString();
+    }
+  } catch {
+    /* not a parseable URL — let pg report it */
+  }
+  const flag = (sslEnv ?? "").toLowerCase();
+  if (flag === "false" || flag === "disable") return { connectionString, ssl: false };
+  const enabled = sslFromUrl || flag === "true" || flag === "require" || flag === "no-verify";
+  if (!enabled) return { connectionString, ssl: false };
+  return { connectionString, ssl: { rejectUnauthorized: flag !== "no-verify" } };
+}
+
 export async function createPgDriver(url: string): Promise<Db> {
   const { Pool } = await import("pg");
+  const settings = buildPgSettings(url);
   const pool = new Pool({
-    connectionString: url,
+    ...settings,
     max: Number(process.env.DATABASE_POOL_MAX ?? 5),
-    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+    // Managed/serverless Postgres (Neon, Supabase…) closes idle connections
+    // and suspends idle databases; the first connection after a pause can be slow.
+    connectionTimeoutMillis: 20_000,
+    idleTimeoutMillis: 10_000,
+    keepAlive: true,
+  });
+  // Without a listener, a connection dropped by the server while idle
+  // would crash the whole process. The pool discards it and reconnects.
+  pool.on("error", (error) => {
+    console.warn("[db] idle connection error (will reconnect):", error.message);
   });
 
   type Queryable = {

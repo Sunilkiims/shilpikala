@@ -37,6 +37,25 @@ async function migrate(db: Db): Promise<void> {
   });
 }
 
+/**
+ * A paused serverless database (Neon etc.) can drop the very first
+ * connection while it wakes up. Retry transient connection failures a
+ * few times before giving up.
+ */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const message = (error as Error).message ?? "";
+      const transient =
+        /Connection terminated|ECONNRESET|ECONNREFUSED|ETIMEDOUT|timeout|the database system is starting up/i.test(message);
+      if (!transient || i >= attempts) throw error;
+      await new Promise((r) => setTimeout(r, 500 * 2 ** (i - 1)));
+    }
+  }
+}
+
 async function boot(): Promise<{ kind: State["kind"]; db: Db }> {
   const url = process.env.DATABASE_URL;
   // In production the data must live in PostgreSQL. The embedded database
@@ -56,7 +75,7 @@ async function boot(): Promise<{ kind: State["kind"]; db: Db }> {
   const db = url
     ? await createPgDriver(url)
     : await createPgliteDriver(resolvePgliteDataDir());
-  await migrate(db);
+  await withRetry(() => migrate(db));
   return { kind: url ? "postgres" : "pglite", db };
 }
 

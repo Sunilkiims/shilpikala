@@ -51,7 +51,7 @@ All are documented in [`.env.example`](./.env.example). **Never commit real valu
 | `SITE_URL` | **Yes (prod)** | Same value as below, server-only and read at runtime. Password-reset and verification emails link to it. Set it on your host, then redeploy/restart. |
 | `NEXT_PUBLIC_SITE_URL` | Yes (prod) | Public URL, no trailing slash. Canonical URLs, sitemap, and **the links inside password-reset and verification emails**. If left as `http://localhost:3000`, those links only work on the computer running the site. |
 | `DATABASE_URL` | **Yes (prod)** | PostgreSQL connection string. Empty ⇒ embedded dev database. |
-| `DATABASE_SSL` | If provider needs it | `true` to connect with SSL (most managed Postgres). |
+| `DATABASE_SSL` | Usually | `true` for Neon/Supabase/most managed Postgres (encrypts and verifies the certificate). `no-verify` only for self-signed hosts. `false` to disable. |
 | `DATABASE_POOL_MAX` | No | Connections per instance (default 5; use 1–3 on serverless). |
 | `NEXT_PUBLIC_RAZORPAY_KEY_ID` | For payments | Razorpay Key ID (public by design). |
 | `RAZORPAY_KEY_SECRET` | For payments | Razorpay Key Secret — **server only**. |
