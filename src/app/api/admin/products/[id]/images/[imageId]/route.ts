@@ -1,3 +1,4 @@
+import { refreshAfter } from "@/lib/cache/revalidate";
 import { NextResponse } from "next/server";
 import { removeProductImage } from "@/lib/store/catalogStore";
 
@@ -5,7 +6,7 @@ type RouteParams = {
   params: Promise<{ id: string; imageId: string }>;
 };
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+async function deleteHandler(_request: Request, { params }: RouteParams) {
   const { id, imageId } = await params;
   const productId = Number(id);
   const imageIdNum = Number(imageId);
@@ -20,3 +21,5 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
   return NextResponse.json({ product: result.product });
 }
+
+export const DELETE = refreshAfter(deleteHandler);

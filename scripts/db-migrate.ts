@@ -5,6 +5,7 @@
  *
  *   npm run db:migrate
  */
+import "./load-env";
 import { getDb, getDbKind } from "../src/lib/db";
 
 (async () => {

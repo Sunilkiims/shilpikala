@@ -1,3 +1,4 @@
+import { refreshAfter } from "@/lib/cache/revalidate";
 import { NextResponse } from "next/server";
 import { addProductImage, getProductById } from "@/lib/store/catalogStore";
 
@@ -9,7 +10,7 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-export async function POST(request: Request, { params }: RouteParams) {
+async function postHandler(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const productId = Number(id);
   if (!Number.isFinite(productId)) {
@@ -59,3 +60,5 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   return NextResponse.json({ product: updated }, { status: 201 });
 }
+
+export const POST = refreshAfter(postHandler);

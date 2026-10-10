@@ -28,6 +28,21 @@ describe("production database guard", () => {
 });
 
 describe("emailLink", () => {
+  it("prefers the runtime SITE_URL over the build-time public one", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000");
+    vi.stubEnv("SITE_URL", "https://live.example.com");
+    const { emailLink } = await import("@/lib/config/emailLinks");
+    expect(emailLink("/x")).toBe("https://live.example.com/x");
+  });
+
+  it("falls back to Vercel's production URL when nothing else is set", async () => {
+    vi.stubEnv("SITE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "shilpikala.vercel.app");
+    const { emailLink } = await import("@/lib/config/emailLinks");
+    expect(emailLink("/x")).toBe("https://shilpikala.vercel.app/x");
+  });
+
   it("builds links from NEXT_PUBLIC_SITE_URL, never from request data", async () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://shop.example.com/");
     const { emailLink } = await import("@/lib/config/emailLinks");

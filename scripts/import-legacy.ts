@@ -5,6 +5,7 @@
  *
  *   npm run db:import-legacy
  */
+import "./load-env";
 import { getDb, getDbKind } from "../src/lib/db";
 import { importLegacyData } from "../src/lib/db/legacyImport";
 

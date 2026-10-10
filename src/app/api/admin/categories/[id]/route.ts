@@ -1,3 +1,4 @@
+import { refreshAfter } from "@/lib/cache/revalidate";
 import { NextResponse } from "next/server";
 import { deleteCategory } from "@/lib/store/catalogStore";
 
@@ -5,7 +6,7 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+async function deleteHandler(_request: Request, { params }: RouteParams) {
   const { id } = await params;
   const categoryId = Number(id);
   if (!Number.isFinite(categoryId)) {
@@ -19,3 +20,5 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
   return NextResponse.json({ deleted: true });
 }
+
+export const DELETE = refreshAfter(deleteHandler);

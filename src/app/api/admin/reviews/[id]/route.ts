@@ -1,3 +1,4 @@
+import { refreshAfter } from "@/lib/cache/revalidate";
 import { NextResponse } from "next/server";
 import { updateReviewStatus } from "@/lib/reviews/store";
 import type { ReviewStatus } from "@/lib/reviews/types";
@@ -6,7 +7,7 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+async function patchHandler(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   let body: unknown;
@@ -28,3 +29,5 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   return NextResponse.json({ review });
 }
+
+export const PATCH = refreshAfter(patchHandler);

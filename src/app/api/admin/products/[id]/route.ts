@@ -1,3 +1,4 @@
+import { refreshAfter } from "@/lib/cache/revalidate";
 import { NextResponse } from "next/server";
 import { deleteProduct, updateProduct } from "@/lib/store/catalogStore";
 import { parseProductInput } from "@/lib/store/validation";
@@ -6,7 +7,7 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+async function patchHandler(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const productId = Number(id);
   if (!Number.isFinite(productId)) {
@@ -33,7 +34,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   return NextResponse.json({ product });
 }
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+async function deleteHandler(_request: Request, { params }: RouteParams) {
   const { id } = await params;
   const productId = Number(id);
   if (!Number.isFinite(productId)) {
@@ -47,3 +48,6 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
   return NextResponse.json({ deleted: true });
 }
+
+export const PATCH = refreshAfter(patchHandler);
+export const DELETE = refreshAfter(deleteHandler);

@@ -1,8 +1,9 @@
+import { refreshAfter } from "@/lib/cache/revalidate";
 import { NextResponse } from "next/server";
 import { createCategory } from "@/lib/store/catalogStore";
 import { parseCategoryInput } from "@/lib/store/validation";
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   let body: unknown;
   try {
     body = await request.json();
@@ -18,3 +19,5 @@ export async function POST(request: Request) {
   const category = await createCategory(parsed.value);
   return NextResponse.json({ category }, { status: 201 });
 }
+
+export const POST = refreshAfter(postHandler);

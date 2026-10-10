@@ -4,6 +4,7 @@
  *
  *   npm run db:check
  */
+import "./load-env";
 import { getDb, getDbKind } from "../src/lib/db";
 
 const tables = [

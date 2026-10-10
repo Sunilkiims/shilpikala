@@ -39,6 +39,20 @@ async function migrate(db: Db): Promise<void> {
 
 async function boot(): Promise<{ kind: State["kind"]; db: Db }> {
   const url = process.env.DATABASE_URL;
+  // In production the data must live in PostgreSQL. The embedded database
+  // is a local-development convenience and would silently keep customer
+  // data in a folder on one server (or lose it on serverless hosts).
+  if (
+    !url &&
+    process.env.NODE_ENV === "production" &&
+    process.env.NEXT_PHASE !== "phase-production-build" &&
+    process.env.ALLOW_EMBEDDED_DB !== "true"
+  ) {
+    throw new Error(
+      "DATABASE_URL is not set. Set it to your PostgreSQL connection string " +
+        "(or set ALLOW_EMBEDDED_DB=true to knowingly use the local embedded database)."
+    );
+  }
   const db = url
     ? await createPgDriver(url)
     : await createPgliteDriver(resolvePgliteDataDir());
