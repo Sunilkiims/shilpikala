@@ -27,7 +27,8 @@ const STATUS_LABEL: Record<string, string> = {
   refunded: "Refunded",
 };
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ mode?: string | string[] }> }) {
+  const { mode } = await searchParams;
   const customer = await getCurrentCustomer();
 
   if (!customer) {
@@ -42,7 +43,7 @@ export default async function AccountPage() {
           without an account.
         </p>
         <div className="mt-8">
-          <SignInRegister />
+          <SignInRegister initialMode={mode === "register" ? "register" : "login"} />
         </div>
       </Container>
     );

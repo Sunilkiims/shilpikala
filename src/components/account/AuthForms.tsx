@@ -28,9 +28,9 @@ function formValues(event: React.FormEvent<HTMLFormElement>): Record<string, str
 }
 
 /** Sign in / create account, switchable in place. */
-export function SignInRegister() {
+export function SignInRegister({ initialMode = "login" }: { initialMode?: "login" | "register" } = {}) {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 

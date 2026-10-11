@@ -7,22 +7,22 @@ import { AccountIcon, SearchIcon } from "@/components/ui/icons";
 
 export function Header() {
   return (
-    <header className="relative border-b border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/80">
+    <header className="relative z-40 border-b border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/80">
       <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-6 sm:px-8">
         <Link
           href="/"
-          className="font-display text-2xl tracking-wide text-charcoal"
+          className="shrink-0 font-display text-2xl tracking-wide text-charcoal"
         >
           {siteConfig.name}
         </Link>
 
-        <nav aria-label="Primary" className="hidden md:block">
-          <ul className="flex items-center gap-8">
+        <nav aria-label="Primary" className="hidden lg:block">
+          <ul className="flex items-center gap-6 xl:gap-8">
             {siteConfig.headerNav.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="text-sm text-earth-brown transition-colors hover:text-terracotta"
+                  className="whitespace-nowrap text-sm text-earth-brown transition-colors hover:text-terracotta"
                 >
                   {link.label}
                 </Link>
