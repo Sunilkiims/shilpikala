@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
-import { createAuthToken, createCustomer, createSession } from "@/lib/auth/customers";
+import { getCustomerByEmail } from "@/lib/auth/customers";
 import { limitAttempts, readJson } from "@/lib/auth/guard";
-import { sessionCookieHeader } from "@/lib/auth/session";
+import { hashPassword } from "@/lib/auth/password";
 import { cleanEmail, cleanName, validatePassword } from "@/lib/auth/validation";
-import { emailLink } from "@/lib/config/emailLinks";
-import { randomUUID } from "node:crypto";
-import { senderFor } from "@/lib/email/config";
-import { deliver } from "@/lib/email/outbox";
-import { verifyEmailEmail, welcomeEmail } from "@/lib/email/templates";
+import {
+  issueCode, otpConfigured, releaseCooldown, sendAccountExistsEmail, sendOtpEmail,
+  OTP_RESEND_COOLDOWN_MS, OTP_TTL_MS,
+} from "@/lib/auth/otp";
 
+/**
+ * Step 1 of sign-up: validate, then email a six-digit code. No account is
+ * created yet — that happens in /api/auth/register/verify.
+ *
+ * The answer is the same whether or not the address already has an account
+ * (an existing owner gets a "you already have an account" email instead of a
+ * code), so this endpoint can't be used to discover who is registered.
+ */
 export async function POST(request: Request) {
   const limited = limitAttempts(request, "register", 10, 60 * 60 * 1000);
   if (limited) return limited;
@@ -23,38 +30,41 @@ export async function POST(request: Request) {
   if (!name) return NextResponse.json({ error: "invalid_name" }, { status: 400 });
   if (passwordError) return NextResponse.json({ error: passwordError }, { status: 400 });
 
-  const customer = await createCustomer({ email, name, password: body.password as string });
-  if (customer === "email_taken") {
-    return NextResponse.json({ error: "email_taken" }, { status: 409 });
+  if (!otpConfigured()) {
+    console.error("[otp] Cannot register: email sending is not configured (RESEND_API_KEY + ACCOUNT_EMAIL_FROM).");
+    return NextResponse.json({ error: "email_failed" }, { status: 503 });
   }
 
-  const verifyToken = await createAuthToken(customer.id, "verify-email");
-  const url = emailLink(`/account/verify-email?token=${verifyToken}`);
-  // Account emails come from the general sender. They are best-effort:
-  // a mail problem must never block registration (deliver never throws
-  // for send failures; the catch covers unexpected database errors).
-  const from = senderFor("general");
-  await Promise.all([
-    deliver({
-      kind: "welcome",
-      key: `welcome:${customer.id}`,
-      to: customer.email,
-      from,
-      ...welcomeEmail(customer.name, emailLink("/shop")),
-      customerId: customer.id,
-    }),
-    deliver({
-      kind: "verify-email",
-      key: `verify-email:${customer.id}:${randomUUID()}`,
-      to: customer.email,
-      from,
-      ...verifyEmailEmail(customer.name, url),
-      customerId: customer.id,
-    }),
-  ]).catch((error) => console.error("[email] Registration emails failed:", error));
+  // Hash first, so every branch below costs about the same time.
+  const passwordHash = await hashPassword(body.password as string);
+  const accepted = {
+    status: "otp_sent",
+    email,
+    expiresInSeconds: OTP_TTL_MS / 1000,
+    resendInSeconds: OTP_RESEND_COOLDOWN_MS / 1000,
+  };
 
-  const session = await createSession(customer.id);
-  const response = NextResponse.json({ customer }, { status: 201 });
-  response.headers.append("Set-Cookie", sessionCookieHeader(session));
-  return response;
+  const existing = await getCustomerByEmail(email);
+  if (existing?.emailVerified) {
+    await sendAccountExistsEmail(email, existing.name);
+    return NextResponse.json(accepted);
+  }
+
+  const issued = await issueCode({ email, name, passwordHash });
+  if (issued.status === "limit") {
+    return NextResponse.json(
+      { error: "otp_limit", retryAfterSeconds: issued.retryAfterSeconds },
+      { status: 429, headers: { "Retry-After": String(issued.retryAfterSeconds) } }
+    );
+  }
+  if (issued.status === "cooldown") {
+    // A code went out moments ago (double-click, page reload): don't send another.
+    return NextResponse.json({ ...accepted, resendInSeconds: issued.retryAfterSeconds });
+  }
+
+  if (!(await sendOtpEmail(email, name, issued.code))) {
+    await releaseCooldown(email);
+    return NextResponse.json({ error: "email_failed" }, { status: 502 });
+  }
+  return NextResponse.json(accepted);
 }

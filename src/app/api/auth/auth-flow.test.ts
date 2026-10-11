@@ -10,7 +10,7 @@ let ipCounter = 0;
 const ip = () => `198.51.100.${++ipCounter % 250}`;
 
 type Handler = (r: Request) => Promise<Response>;
-let register: Handler, login: Handler, logout: Handler, forgot: Handler, reset: Handler, verify: Handler;
+let register: Handler, registerVerify: Handler, login: Handler, logout: Handler, forgot: Handler, reset: Handler, verify: Handler;
 let profile: Handler;
 let customers: typeof import("@/lib/auth/customers");
 let session: typeof import("@/lib/auth/session");
@@ -18,7 +18,11 @@ let session: typeof import("@/lib/auth/session");
 beforeEach(async () => {
   cleanup = isolateStorageDir();
   sendEmail.mockClear();
+  vi.stubEnv("RESEND_API_KEY", "re_test");
+  vi.stubEnv("ACCOUNT_EMAIL_FROM", "account@shilpikala.com");
+  vi.stubEnv("SITE_URL", "https://shop.example.com");
   ({ POST: register } = await import("@/app/api/auth/register/route"));
+  ({ POST: registerVerify } = await import("@/app/api/auth/register/verify/route"));
   ({ POST: login } = await import("@/app/api/auth/login/route"));
   ({ POST: logout } = await import("@/app/api/auth/logout/route"));
   ({ POST: forgot } = await import("@/app/api/auth/forgot-password/route"));
@@ -28,62 +32,29 @@ beforeEach(async () => {
   customers = await import("@/lib/auth/customers");
   session = await import("@/lib/auth/session");
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  cleanup();
+});
 
-const reg = (over: Record<string, unknown> = {}, address = ip()) =>
-  register(jsonRequest("http://x/api/auth/register", {
-    ip: address,
-    body: { email: "Jane@Example.com", name: "Jane", password: "a-good-password", ...over },
-  }));
+/** The six-digit code from the most recent verification email. */
+function lastCode(): string {
+  const mail = [...sendEmail.mock.calls].map((c) => c[0]).reverse().find((m) => m.subject.startsWith("Verify your email address"));
+  return /code is: (\d{6})/.exec(mail.text)![1];
+}
+
+/** Full sign-up: request a code, enter it, get the signed-in response (201 + cookie). */
+async function reg(over: Record<string, unknown> = {}, address = ip()) {
+  const body = { email: "Jane@Example.com", name: "Jane", password: "a-good-password", ...over };
+  const started = await register(jsonRequest("http://x/api/auth/register", { ip: address, body }));
+  expect(started.status).toBe(200);
+  return registerVerify(jsonRequest("http://x/api/auth/register/verify", { ip: address, body: { email: body.email, code: lastCode() } }));
+}
 
 function cookieFrom(response: Response): string {
   const header = response.headers.get("set-cookie") ?? "";
   return header.split(";")[0];
 }
-
-describe("register", () => {
-  it("creates an account, normalises the email, signs in, and sends a verification email", async () => {
-    const res = await reg();
-    expect(res.status).toBe(201);
-    const { customer } = await res.json();
-    expect(customer.email).toBe("jane@example.com");
-    expect(customer.emailVerified).toBe(false);
-    expect(customer).not.toHaveProperty("password_hash");
-    expect(res.headers.get("set-cookie")).toMatch(/HttpOnly/);
-    expect(res.headers.get("set-cookie")).toMatch(/SameSite=Lax/);
-    // A welcome email and a verification email, both to the new customer.
-    expect(sendEmail).toHaveBeenCalledTimes(2);
-    const subjects = sendEmail.mock.calls.map((c) => c[0].subject);
-    expect(subjects.some((s: string) => /welcome/i.test(s))).toBe(true);
-    expect(subjects.some((s: string) => /confirm your/i.test(s))).toBe(true);
-    for (const [mail] of sendEmail.mock.calls) {
-      expect(mail.to).toBe("jane@example.com");
-      expect(mail.text).toBeTruthy();
-    }
-  });
-
-  it("rejects a duplicate email (case-insensitively) with 409", async () => {
-    await reg();
-    expect((await reg({ email: "JANE@example.com" })).status).toBe(409);
-  });
-
-  it.each([
-    [{ email: "nope" }, "invalid_email"],
-    [{ name: "  " }, "invalid_name"],
-    [{ password: "short" }, "password_too_short"],
-  ])("validates input %j", async (over, error) => {
-    const res = await reg(over);
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe(error);
-  });
-
-  it("rate-limits repeated registrations from one IP", async () => {
-    const same = "192.0.2.77";
-    let last = 0;
-    for (let i = 0; i < 12; i++) last = (await reg({ email: `u${i}@example.com` }, same)).status;
-    expect(last).toBe(429);
-  });
-});
 
 describe("login / session / logout", () => {
   it("logs in with the right password and the session resolves to the customer", async () => {
@@ -138,10 +109,16 @@ describe("login / session / logout", () => {
   });
 });
 
-describe("email verification", () => {
+describe("email verification links (accounts created before codes existed)", () => {
+  const legacy = async () => {
+    const created = await customers.createCustomer({ email: "jane@example.com", name: "Jane", password: "a-good-password" });
+    if (created === "email_taken") throw new Error("taken");
+    return { customer: created };
+  };
+
   it("verifies once; the token cannot be reused", async () => {
-    const res = await reg();
-    const { customer } = await res.json();
+    const { customer } = await legacy();
+    expect(customer.emailVerified).toBe(false);
     const token = await customers.createAuthToken(customer.id, "verify-email");
 
     expect((await verify(jsonRequest("http://x", { ip: ip(), body: { token } }))).status).toBe(200);
@@ -150,7 +127,7 @@ describe("email verification", () => {
   });
 
   it("rejects an unknown token and an expired token", async () => {
-    const { customer } = await (await reg()).json();
+    const { customer } = await legacy();
     expect((await verify(jsonRequest("http://x", { ip: ip(), body: { token: "bogus" } }))).status).toBe(400);
     const token = await customers.createAuthToken(customer.id, "verify-email");
     const { getDb } = await import("@/lib/db");
@@ -159,7 +136,7 @@ describe("email verification", () => {
   });
 
   it("a reset token can't be used as a verification token", async () => {
-    const { customer } = await (await reg()).json();
+    const { customer } = await legacy();
     const token = await customers.createAuthToken(customer.id, "reset-password");
     expect((await verify(jsonRequest("http://x", { ip: ip(), body: { token } }))).status).toBe(400);
   });

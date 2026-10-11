@@ -51,7 +51,7 @@ export function OrderFulfilmentForm({ orderId, status, trackingNumber, carrier }
       <label className="sr-only" htmlFor={`status-${orderId}`}>Status</label>
       <select id={`status-${orderId}`} name="status" defaultValue={status} className={inputClass}>
         {ORDER_STATUSES.map((s) => (
-          <option key={s} value={s}>{s}</option>
+          <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
         ))}
       </select>
       <label className="sr-only" htmlFor={`carrier-${orderId}`}>Carrier</label>

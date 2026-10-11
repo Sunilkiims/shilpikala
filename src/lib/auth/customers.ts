@@ -102,7 +102,7 @@ export async function getCustomerBySession(token: string | undefined): Promise<C
   const db = await getDb();
   const res = await db.query<CustomerRow>(
     `SELECT c.* FROM sessions s JOIN customers c ON c.id = s.customer_id
-      WHERE s.token_hash = $1 AND s.expires_at > now()`,
+      WHERE s.token_hash = $1 AND s.expires_at > now() AND c.email_verified = true`,
     [sha256(token)]
   );
   return res.rows[0] ? toAccount(res.rows[0]) : undefined;

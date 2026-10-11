@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       kind: "password-reset",
       key: `password-reset:${customer.id}:${randomUUID()}`,
       to: customer.email,
-      from: senderFor("reset"),
+      from: senderFor("account"),
       ...passwordResetEmail(emailLink(`/account/reset-password?token=${token}`)),
       customerId: customer.id,
     }).catch((error) => console.error("[email] Password reset email failed:", error));

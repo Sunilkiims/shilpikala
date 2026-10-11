@@ -296,9 +296,13 @@ describe("POST /api/checkout/verify-payment — recording from the snapshot", ()
     expect(second.status).toBe(200);
     expect(await orderStore.getAllOrders()).toHaveLength(1);
     expect((await catalog.getProducts()).find((x) => x.id === p.id)?.stockQuantity).toBe(3);
-    expect(sendEmail).toHaveBeenCalledTimes(1);
+    // Confirmation + payment/invoice email, each exactly once however often it is replayed.
+    expect(sendEmail).toHaveBeenCalledTimes(2);
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "jane@example.com", subject: expect.stringContaining("Order Confirmed") })
+    );
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "jane@example.com", subject: expect.stringContaining("Payment Received & Invoice") })
     );
   });
 
@@ -347,7 +351,7 @@ describe("POST /api/checkout/verify-payment — recording from the snapshot", ()
 
     expect(response.status).toBe(200);
     expect(await orderStore.getAllOrders()).toHaveLength(1);
-    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledTimes(2);
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Stock decrement failed"),
       expect.anything()
@@ -403,6 +407,6 @@ describe("POST /api/checkout/verify-payment — admin new-order alert", () => {
 
     await POST(jsonRequest(URL, { body: verifyBody() }));
 
-    expect(sendEmail.mock.calls.map(([arg]) => arg.to)).toEqual(["jane@example.com"]);
+    expect(sendEmail.mock.calls.map(([arg]) => arg.to)).toEqual(["jane@example.com", "jane@example.com"]);
   });
 });

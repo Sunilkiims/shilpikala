@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         kind: "password-changed",
         key: `password-changed:${customerId}:${randomUUID()}`,
         to: customer.email,
-        from: senderFor("reset"),
+        from: senderFor("account"),
         ...passwordChangedEmail(),
         customerId,
       });

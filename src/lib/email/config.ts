@@ -1,6 +1,6 @@
 /**
- * Email settings. Sender addresses are per message type so password
- * resets, account emails and invoices each come from their own mailbox.
+ * Email settings. Sender addresses are per message type so order,
+ * invoice and account emails each come from their own mailbox.
  * Every address must be on a domain verified with the email provider.
  */
 export const emailConfig = {
@@ -10,26 +10,42 @@ export const emailConfig = {
   adminNotificationEmail: process.env.ADMIN_EMAIL || process.env.ADMIN_NOTIFICATION_EMAIL || "",
 };
 
-export type SenderKind = "reset" | "general" | "invoice" | "orders";
+/**
+ * Which mailbox a message comes from, by purpose:
+ *  - orders:  order confirmation, processing / shipping / delivery / cancellation updates
+ *             (and the internal new-order alert to the owner)
+ *  - invoice: payment confirmation + invoice PDF, refunds, other billing mail
+ *  - account: account verification, password reset, security notices
+ *  - general: contact / custom-art enquiry receipts (not part of the three above)
+ */
+export type SenderKind = "orders" | "invoice" | "account" | "general";
 
 const DISPLAY_NAME: Record<SenderKind, string> = {
-  reset: "ShilpiKala",
-  general: "ShilpiKala",
-  invoice: "ShilpiKala",
-  // Internal mail to the owner about new orders.
   orders: "ShilpiKala Orders",
+  invoice: "ShilpiKala Invoices",
+  account: "ShilpiKala Account",
+  general: "ShilpiKala",
+};
+
+/** First non-empty value — the new variable wins, older names keep working. */
+const firstSet = (...names: string[]): string => {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return "";
+};
+
+/** Environment variables consulted for each sender, in priority order. */
+export const SENDER_ENV: Record<SenderKind, string[]> = {
+  orders: ["ORDER_EMAIL_FROM", "EMAIL_INVOICE_FROM", "EMAIL_FROM"],
+  invoice: ["INVOICE_EMAIL_FROM", "EMAIL_INVOICE_FROM", "EMAIL_FROM"],
+  account: ["ACCOUNT_EMAIL_FROM", "EMAIL_RESET_FROM", "EMAIL_GENERAL_FROM", "EMAIL_FROM"],
+  general: ["EMAIL_GENERAL_FROM", "EMAIL_FROM", "ORDER_EMAIL_FROM"],
 };
 
 function rawSender(kind: SenderKind): string {
-  switch (kind) {
-    case "reset":
-      return process.env.EMAIL_RESET_FROM || emailConfig.from;
-    case "general":
-      return process.env.EMAIL_GENERAL_FROM || emailConfig.from;
-    case "invoice":
-    case "orders":
-      return process.env.EMAIL_INVOICE_FROM || emailConfig.from;
-  }
+  return firstSet(...SENDER_ENV[kind]);
 }
 
 /** "Name <address>" — leaves a value that already has a display name alone. */
@@ -45,13 +61,7 @@ export function senderFor(kind: SenderKind): string {
 }
 
 export function isEmailConfigured(): boolean {
-  return Boolean(
-    emailConfig.apiKey &&
-      (emailConfig.from ||
-        process.env.EMAIL_RESET_FROM ||
-        process.env.EMAIL_GENERAL_FROM ||
-        process.env.EMAIL_INVOICE_FROM)
-  );
+  return Boolean(emailConfig.apiKey && (Object.keys(SENDER_ENV) as SenderKind[]).some((kind) => rawSender(kind)));
 }
 
 export function isAdminNotificationConfigured(): boolean {

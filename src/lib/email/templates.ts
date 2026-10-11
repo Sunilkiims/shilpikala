@@ -125,6 +125,58 @@ export function verifyEmailEmail(name: string, url: string): Rendered {
   });
 }
 
+/** Six-digit registration code. The subject is fixed by the product spec. */
+export function otpEmail(name: string, code: string, ttlMinutes = 5): Rendered {
+  const spaced = `${code.slice(0, 3)} ${code.slice(3)}`;
+  const body = `${p(`Hi ${escapeHtml(name)}, enter this code on the ${escapeHtml(siteConfig.name)} sign-up page to verify your email address:`)}
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;"><tr>
+      <td align="center" style="background:${C.paper};border:1px solid ${C.line};padding:18px 12px;">
+        <div style="font-family:Consolas,Menlo,'Courier New',monospace;font-size:34px;line-height:1;font-weight:bold;letter-spacing:10px;color:${C.ink};">${escapeHtml(code)}</div>
+      </td></tr></table>
+    ${p(`This code expires in <strong>${ttlMinutes} minutes</strong> and can be used only once.`)}
+    <p style="font-size:13px;line-height:1.6;color:${C.terracotta};margin:0 0 16px;"><strong>Never share this code.</strong> ${escapeHtml(siteConfig.name)} will never ask you for it by phone, chat or email.</p>
+    <p style="font-size:13px;line-height:1.6;color:${C.muted};margin:0 0 16px;">If you didn't try to create an account, you can safely ignore this email — no account will be created.</p>`;
+  return {
+    subject: `Verify your email address — ${siteConfig.name}`,
+    html: layout({ preheader: `Your ${siteConfig.name} verification code is ${spaced}. It expires in ${ttlMinutes} minutes.`, heading: "Verify your email address", body }),
+    text: `Hi ${name},
+
+Your ${siteConfig.name} verification code is: ${code}
+
+Enter it on the sign-up page to verify your email address. The code expires in ${ttlMinutes} minutes and can be used only once.
+
+Never share this code with anyone. ${siteConfig.name} will never ask you for it.
+
+If you didn't try to create an account, ignore this email — no account will be created.
+
+Questions? ${supportLine()}
+`,
+  };
+}
+
+/** Sent instead of a code when someone tries to register an address that already has an account. */
+export function accountExistsEmail(name: string, signInUrl: string, resetUrl: string): Rendered {
+  const body = `${p(`Hi ${escapeHtml(name)}, someone just tried to create a ${escapeHtml(siteConfig.name)} account with this email address — but you already have one.`)}
+    ${p("If that was you, just sign in. If you've forgotten your password, you can reset it.")}
+    ${button("Sign in", signInUrl)}
+    <p style="font-size:13px;line-height:1.6;color:${C.muted};margin:0 0 16px;">Forgot your password? <a href="${escapeHtml(resetUrl)}" style="color:${C.terracotta};">Reset it here</a>. If it wasn't you, you can ignore this email — nothing has changed.</p>`;
+  return {
+    subject: `You already have a ${siteConfig.name} account`,
+    html: layout({ preheader: "Sign in instead — your account already exists.", heading: "You already have an account", body }),
+    text: `Hi ${name},
+
+Someone just tried to create a ${siteConfig.name} account with this email address, but you already have one.
+
+Sign in: ${signInUrl}
+Forgot your password? ${resetUrl}
+
+If it wasn't you, ignore this email — nothing has changed.
+
+Questions? ${supportLine()}
+`,
+  };
+}
+
 export function passwordResetEmail(url: string): Rendered {
   return actionEmail({
     subject: `Reset your ${siteConfig.name} password`,
@@ -260,23 +312,23 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): Rendered {
     <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:${C.paper};width:100%;"><tr><td style="padding:14px 16px;">
       <table role="presentation" cellspacing="0" cellpadding="0">
         ${factRow("Order number", `<strong>${num}</strong>`)}
+        ${factRow("Order reference", `<span style="font-family:Consolas,Menlo,monospace;font-size:12px;word-break:break-all;">${escapeHtml(order.id)}</span>`)}
         ${factRow("Order date", fmtDate(order.createdAt))}
-        ${factRow("Invoice", escapeHtml(ctx.invoiceNumber))}
         ${factRow("Payment", escapeHtml(paymentLabel(order)))}
         ${factRow("Estimated delivery", escapeHtml(ctx.estimatedDelivery))}
       </table></td></tr></table>
     ${summaryTable(ctx, totals)}
     <p style="font-size:12px;letter-spacing:2px;color:${C.terracotta};margin:0 0 6px;">SHIPPING TO</p>
     <p style="font-size:14px;line-height:1.6;color:${C.ink};margin:0 0 20px;">${addressHtml(order)}${order.address.phone ? `<br>${escapeHtml(order.address.phone)}` : ""}</p>
-    ${p("Your PDF invoice is attached to this email. You can also view this order and download the invoice from your account at any time.")}
+    ${p("Your payment receipt and PDF invoice are in a separate email. You can also view this order and download the invoice from your account at any time. To track your order without an account, use your order number or order reference above together with this email address.")}
     ${button("View order & invoice", ctx.accountUrl)}`;
   const text = `Hi ${order.address.fullName},
 
 Thank you — your payment was received and your order is confirmed.
 
 Order number: ${num}
+Order reference: ${order.id}
 Order date: ${fmtDate(order.createdAt)}
-Invoice: ${ctx.invoiceNumber}
 Payment: ${paymentLabel(order)}
 Estimated delivery: ${ctx.estimatedDelivery}
 
@@ -285,13 +337,55 @@ ${textSummary(ctx, totals)}
 Shipping to:
 ${addressText(order)}
 
-Your PDF invoice is attached. View your order and download the invoice: ${ctx.accountUrl}
+Your payment receipt and PDF invoice are in a separate email. View your order and download the invoice: ${ctx.accountUrl}
+To track your order without an account, use your order number or order reference with this email address.
 
 Questions? ${supportLine()}
 `;
   return {
     subject: `Order Confirmed – ${siteConfig.name} | Order #${num}`,
-    html: layout({ preheader: `Order #${num} is confirmed. Invoice attached.`, heading: "Your order is confirmed", body, footerNote: "A PDF invoice is attached to this email." }),
+    html: layout({ preheader: `Order #${num} is confirmed.`, heading: "Your order is confirmed", body }),
+    text,
+  };
+}
+
+/** Payment confirmation / receipt with the PDF invoice attached (sent from the invoice mailbox). */
+export function paymentInvoiceEmail(ctx: OrderEmailContext): Rendered {
+  const { order } = ctx;
+  const num = formatOrderNumber(order.orderNumber);
+  const totals = computeInvoiceTotals(order, getBusinessProfile());
+  const body = `${p(`Hi ${escapeHtml(order.address.fullName)}, we have received your payment of <strong>${rupees(totals.totalPaise)}</strong>. Thank you! This is your payment receipt; the PDF invoice is attached.`)}
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:${C.paper};width:100%;"><tr><td style="padding:14px 16px;">
+      <table role="presentation" cellspacing="0" cellpadding="0">
+        ${factRow("Invoice number", `<strong>${escapeHtml(ctx.invoiceNumber)}</strong>`)}
+        ${factRow("Order number", num)}
+        ${factRow("Order reference", `<span style="font-family:Consolas,Menlo,monospace;font-size:12px;word-break:break-all;">${escapeHtml(order.id)}</span>`)}
+        ${factRow("Payment", escapeHtml(paymentLabel(order)))}
+        ${factRow("Payment reference", escapeHtml(order.razorpayPaymentId))}
+        ${factRow("Date", fmtDate(order.createdAt))}
+      </table></td></tr></table>
+    ${summaryTable(ctx, totals)}
+    ${button("View order & invoice", ctx.accountUrl)}`;
+  const text = `Hi ${order.address.fullName},
+
+We have received your payment of ${rupees(totals.totalPaise)}. Thank you! This is your payment receipt; the PDF invoice is attached.
+
+Invoice number: ${ctx.invoiceNumber}
+Order number: ${num}
+Order reference: ${order.id}
+Payment: ${paymentLabel(order)}
+Payment reference: ${order.razorpayPaymentId}
+Date: ${fmtDate(order.createdAt)}
+
+${textSummary(ctx, totals)}
+
+View your order and download the invoice: ${ctx.accountUrl}
+
+Questions? ${supportLine()}
+`;
+  return {
+    subject: `Payment Received & Invoice ${ctx.invoiceNumber} – ${siteConfig.name} | Order #${num}`,
+    html: layout({ preheader: `Payment received for order #${num}. Invoice ${ctx.invoiceNumber} attached.`, heading: "Payment received", body, footerNote: "A PDF invoice is attached to this email." }),
     text,
   };
 }
@@ -341,7 +435,10 @@ Admin dashboard: ${ctx.adminUrl}
   };
 }
 
-export type StatusEmailKind = "shipped" | "cancelled" | "refunded";
+export type StatusEmailKind = "processing" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "refunded";
+
+/** Kinds that are billing mail (sent from the invoice mailbox); the rest come from the orders mailbox. */
+export const BILLING_STATUS_KINDS: readonly StatusEmailKind[] = ["refunded"];
 
 export function orderStatusEmail(
   kind: StatusEmailKind,
@@ -350,10 +447,25 @@ export function orderStatusEmail(
 ): Rendered {
   const num = formatOrderNumber(order.orderNumber);
   const copy = {
+    processing: {
+      subject: `Your ${siteConfig.name} order is being prepared | Order #${num}`,
+      heading: "We're preparing your order",
+      lead: "your order is now being prepared with care.",
+    },
     shipped: {
       subject: `Your ${siteConfig.name} order is on its way | Order #${num}`,
       heading: "Your order has shipped",
       lead: "your order is on its way.",
+    },
+    out_for_delivery: {
+      subject: `Out for delivery today | Order #${num}`,
+      heading: "Your order is out for delivery",
+      lead: "your order is out for delivery and should reach you soon.",
+    },
+    delivered: {
+      subject: `Delivered | Order #${num}`,
+      heading: "Your order was delivered",
+      lead: "your order has been delivered. We hope you love it!",
     },
     cancelled: {
       subject: `Your ${siteConfig.name} order was cancelled | Order #${num}`,
@@ -367,18 +479,35 @@ export function orderStatusEmail(
     },
   }[kind];
 
-  const tracking =
-    kind === "shipped" && order.trackingNumber
-      ? p(`${order.carrier ? `${escapeHtml(order.carrier)} · ` : ""}Tracking number: <strong>${escapeHtml(order.trackingNumber)}</strong>`)
+  const showTracking = kind === "shipped" || kind === "out_for_delivery" || kind === "delivered";
+  const trackingLine =
+    showTracking && order.trackingNumber
+      ? `${order.carrier ? `${order.carrier} · ` : ""}Tracking number: ${order.trackingNumber}`
       : "";
-  const body = `${p(`Hi ${escapeHtml(order.address.fullName)}, ${copy.lead}`)}${tracking}
-    ${p(`Order number: <strong>${num}</strong>`)}${button("View order", accountUrl)}`;
-  const text = `Hi ${order.address.fullName}, ${copy.lead}\n\nOrder number: ${num}\n${
-    kind === "shipped" && order.trackingNumber ? `Tracking: ${order.carrier ? order.carrier + " " : ""}${order.trackingNumber}\n` : ""
+  const tracking = trackingLine
+    ? p(`${order.carrier ? `${escapeHtml(order.carrier)} · ` : ""}Tracking number: <strong>${escapeHtml(order.trackingNumber as string)}</strong>`)
+    : "";
+  const showAddress = kind === "processing" || kind === "shipped" || kind === "out_for_delivery" || kind === "delivered";
+  const addressBlock = showAddress
+    ? `<p style="font-size:12px;letter-spacing:2px;color:${C.terracotta};margin:0 0 6px;">DELIVERING TO</p>
+    <p style="font-size:14px;line-height:1.6;color:${C.ink};margin:0 0 20px;">${addressHtml(order)}</p>`
+    : "";
+  const eta = kind === "processing" ? p(`Estimated timing: ${escapeHtml(estimatedDeliveryLine())}.`) : "";
+  const body = `${p(`Hi ${escapeHtml(order.address.fullName)}, ${copy.lead}`)}${tracking}${eta}
+    ${p(`Order number: <strong>${num}</strong><br>Order reference: <span style="font-family:Consolas,Menlo,monospace;font-size:12px;word-break:break-all;">${escapeHtml(order.id)}</span>`)}${addressBlock}${button("View order", accountUrl)}`;
+  const text = `Hi ${order.address.fullName}, ${copy.lead}\n\nOrder number: ${num}\nOrder reference: ${order.id}\n${
+    trackingLine ? `${trackingLine}\n` : ""
+  }${kind === "processing" ? `Estimated timing: ${estimatedDeliveryLine()}\n` : ""}${
+    showAddress ? `\nDelivering to:\n${addressText(order)}\n` : ""
   }\nView order: ${accountUrl}\n\n${supportLine()}\n`;
   return {
     subject: copy.subject,
     html: layout({ preheader: copy.heading, heading: copy.heading, body }),
     text,
   };
+}
+
+function estimatedDeliveryLine(): string {
+  const { dispatchTime, deliveryTime } = siteConfig.business;
+  return `dispatch in ${dispatchTime}; delivery in ${deliveryTime}`;
 }

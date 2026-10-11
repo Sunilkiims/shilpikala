@@ -106,7 +106,7 @@ export function TrackOrderForm() {
           <span className="text-charcoal">{order.id}</span>
         </p>
         <p className="mt-1 text-xs text-earth-brown/70">
-          Placed {formatDate(order.createdAt)} · {order.status === "paid" ? "Paid" : order.status}
+          Placed {formatDate(order.createdAt)} · {order.status === "paid" ? "Paid" : order.status.replace(/_/g, " ")}
         </p>
 
         <ul className="mt-5 divide-y divide-earth-brown/15 border-y border-earth-brown/15">
@@ -177,7 +177,7 @@ export function TrackOrderForm() {
           className={fieldClass}
           value={orderId}
           onChange={(e) => setOrderId(e.target.value)}
-          placeholder="From your confirmation email"
+          placeholder="Order number (SK-1001) or reference from your email"
           required
         />
       </label>

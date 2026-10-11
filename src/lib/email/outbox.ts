@@ -16,10 +16,13 @@ import { sendEmail, type EmailAttachment, type SendEmailResult } from "@/lib/ema
 
 export type EmailKind =
   | "order-confirmation"
+  | "order-invoice"
   | "order-admin"
   | "order-status"
   | "welcome"
   | "verify-email"
+  | "register-otp"
+  | "account-exists"
   | "password-reset"
   | "password-changed"
   | "inquiry-receipt"

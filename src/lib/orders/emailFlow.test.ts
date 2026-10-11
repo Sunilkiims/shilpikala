@@ -58,9 +58,10 @@ async function setup() {
   vi.stubEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", "rzp_test_key");
   vi.stubEnv("RAZORPAY_WEBHOOK_SECRET", HOOK_SECRET);
   vi.stubEnv("RESEND_API_KEY", "re_test");
-  vi.stubEnv("EMAIL_INVOICE_FROM", "invoice@shilpikala.com");
+  vi.stubEnv("ORDER_EMAIL_FROM", "orders@shilpikala.com");
+  vi.stubEnv("INVOICE_EMAIL_FROM", "invoice@shilpikala.com");
+  vi.stubEnv("ACCOUNT_EMAIL_FROM", "account@shilpikala.com");
   vi.stubEnv("EMAIL_GENERAL_FROM", "hello@shilpikala.com");
-  vi.stubEnv("EMAIL_RESET_FROM", "reset@shilpikala.com");
   vi.stubEnv("ADMIN_EMAIL", ADMIN);
   vi.stubEnv("SITE_URL", "https://shop.example.com");
   orders = await import("@/lib/orders/store");
@@ -85,41 +86,54 @@ afterEach(() => {
   cleanup();
 });
 
-describe("verified purchase → two separate emails with the same PDF invoice", () => {
-  it("sends the customer confirmation and the admin alert, each with an invoice attached", async () => {
+describe("verified purchase → confirmation, invoice and admin alert, each from the right mailbox", () => {
+  it("sends the order confirmation (orders@), the invoice (invoice@) and the admin alert (orders@)", async () => {
     await pending.savePendingOrder(snapshot());
     const res = await verifyPost(verifyReq());
     expect(res.status).toBe(200);
 
     const order = (await orders.getAllOrders())[0];
     const num = `SK-${order.orderNumber}`;
-    expect(sendEmail).toHaveBeenCalledTimes(2);
+    expect(sendEmail).toHaveBeenCalledTimes(3);
 
-    const [customer] = sentTo("jane@example.com");
-    expect(customer.from).toBe("ShilpiKala <invoice@shilpikala.com>");
+    const customer = sentTo("jane@example.com").find((m) => m.subject.startsWith("Order Confirmed"))!;
+    const invoiceMail = sentTo("jane@example.com").find((m) => m.subject.startsWith("Payment Received & Invoice"))!;
+    expect(customer.from).toBe("ShilpiKala Orders <orders@shilpikala.com>");
+    expect(customer.attachments ?? []).toHaveLength(0);
     expect(customer.subject).toBe(`Order Confirmed – ShilpiKala | Order #${num}`);
     expect(customer.html).toContain("Mandala Wall Art");
     expect(customer.html).toContain("Jane Doe");
     expect(customer.html).toContain("https://shop.example.com/account");
     expect(customer.text).toContain(num);
+    // Both identifiers the Track Order page accepts are in the email, and each finds the order.
+    expect(customer.html).toContain(order.id);
+    expect(customer.text).toContain(`Order reference: ${order.id}`);
+    expect((await orders.getOrderByReference(order.id))?.id).toBe(order.id);
+    expect((await orders.getOrderByReference(num))?.id).toBe(order.id);
     expect(customer.text).toContain("₹2,150.00");
-    expect(customer.attachments).toHaveLength(1);
-    expect(customer.attachments[0].filename).toMatch(/^ShilpiKala-Invoice-SK-2026-27-00001\.pdf$/);
-    expect(customer.attachments[0].content.subarray(0, 5).toString()).toBe("%PDF-");
+    // Payment receipt + PDF invoice come separately, from the invoice mailbox.
+    expect(invoiceMail.from).toBe("ShilpiKala Invoices <invoice@shilpikala.com>");
+    expect(invoiceMail.subject).toBe(`Payment Received & Invoice SK/2026-27/00001 – ShilpiKala | Order #${num}`);
+    expect(invoiceMail.html).toContain("pay_1");
+    expect(invoiceMail.html).toContain(order.id);
+    expect(invoiceMail.text).toContain("₹2,150.00");
+    expect(invoiceMail.attachments).toHaveLength(1);
+    expect(invoiceMail.attachments[0].filename).toMatch(/^ShilpiKala-Invoice-SK-2026-27-00001\.pdf$/);
+    expect(invoiceMail.attachments[0].content.subarray(0, 5).toString()).toBe("%PDF-");
 
     const [admin] = sentTo(ADMIN);
-    expect(admin.from).toBe("ShilpiKala Orders <invoice@shilpikala.com>");
+    expect(admin.from).toBe("ShilpiKala Orders <orders@shilpikala.com>");
     expect(admin.subject).toBe(`New Order Received – #${num}`);
     expect(admin.html).toContain("pay_1");
     expect(admin.html).toContain("jane@example.com");
     expect(admin.html).toContain("+91 90000 00000");
     expect(admin.html).toContain(`https://shop.example.com/admin/orders#order-${order.id}`);
     // The very same invoice goes to both.
-    expect(admin.attachments[0].filename).toBe(customer.attachments[0].filename);
-    expect(Buffer.compare(admin.attachments[0].content, customer.attachments[0].content)).toBe(0);
+    expect(admin.attachments[0].filename).toBe(invoiceMail.attachments[0].filename);
+    expect(Buffer.compare(admin.attachments[0].content, invoiceMail.attachments[0].content)).toBe(0);
 
     const log = await outbox.listEmailLog();
-    expect(log.map((l) => [l.kind, l.status]).sort()).toEqual([["order-admin", "sent"], ["order-confirmation", "sent"]]);
+    expect(log.map((l) => [l.kind, l.status]).sort()).toEqual([["order-admin", "sent"], ["order-confirmation", "sent"], ["order-invoice", "sent"]]);
   });
 
   it("uses the payment method from the webhook when it is known", async () => {
@@ -148,15 +162,16 @@ describe("verified purchase → two separate emails with the same PDF invoice", 
     vi.stubEnv("RAZORPAY_KEY_SECRET", KEY_SECRET);
     vi.stubEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", "rzp_test_key");
     vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubEnv("EMAIL_INVOICE_FROM", "invoice@shilpikala.com");
+    vi.stubEnv("ORDER_EMAIL_FROM", "orders@shilpikala.com");
+    vi.stubEnv("INVOICE_EMAIL_FROM", "invoice@shilpikala.com");
     vi.stubEnv("ADMIN_EMAIL", "");
     vi.stubEnv("ADMIN_NOTIFICATION_EMAIL", "");
     const pend = await import("@/lib/orders/pendingStore");
     const { POST } = await import("@/app/api/checkout/verify-payment/route");
     await pend.savePendingOrder(snapshot());
     await POST(verifyReq());
-    expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0].to).toBe("jane@example.com");
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+    expect(sendEmail.mock.calls.every((c) => c[0].to === "jane@example.com")).toBe(true);
   });
 });
 
@@ -223,17 +238,17 @@ describe("Razorpay webhook", () => {
     await pending.savePendingOrder(snapshot()); // the condition clears
     expect((await webhookPost(hook(captured()))).status).toBe(200);
     expect(await orders.getAllOrders()).toHaveLength(1);
-    expect(sendEmail).toHaveBeenCalledTimes(2);
+    expect(sendEmail).toHaveBeenCalledTimes(3);
   });
 
-  it("duplicate webhook deliveries, then the browser verify call: one order, one stock decrement, 2 emails total", async () => {
+  it("duplicate webhook deliveries, then the browser verify call: one order, one stock decrement, 3 emails total", async () => {
     await pending.savePendingOrder(snapshot());
     for (let i = 0; i < 3; i++) expect((await webhookPost(hook(captured()))).status).toBe(200);
     await verifyPost(verifyReq());
     await verifyPost(verifyReq());
     expect(await orders.getAllOrders()).toHaveLength(1);
-    expect(sendEmail).toHaveBeenCalledTimes(2);
-    expect(await outbox.listEmailLog()).toHaveLength(2);
+    expect(sendEmail).toHaveBeenCalledTimes(3);
+    expect(await outbox.listEmailLog()).toHaveLength(3);
   });
 
   it("concurrent webhook + verify race still yields one order and each email once", async () => {
@@ -245,7 +260,7 @@ describe("Razorpay webhook", () => {
       verifyPost(verifyReq()),
     ]);
     expect(await orders.getAllOrders()).toHaveLength(1);
-    expect(sentTo("jane@example.com")).toHaveLength(1);
+    expect(sentTo("jane@example.com")).toHaveLength(2); // confirmation + invoice, each once
     expect(sentTo(ADMIN)).toHaveLength(1);
   });
 
@@ -258,7 +273,7 @@ describe("Razorpay webhook", () => {
     await webhookPost(hook(refund));
     expect((await orders.getAllOrders())[0].status).toBe("refunded");
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0]).toMatchObject({ to: "jane@example.com", from: "ShilpiKala <invoice@shilpikala.com>" });
+    expect(sendEmail.mock.calls[0][0]).toMatchObject({ to: "jane@example.com", from: "ShilpiKala Invoices <invoice@shilpikala.com>" });
     expect(sendEmail.mock.calls[0][0].subject).toMatch(/^Refund issued/);
   });
 });
@@ -283,14 +298,14 @@ describe("email failures and retries", () => {
     const order = (await orders.getAllOrders())[0];
     const retry = await orderEmails.retryOrderEmails(order.id);
     expect(retry.orders).toBe(1);
-    expect(sentTo("jane@example.com")).toHaveLength(2); // 1 failed + 1 retried
+    expect(sentTo("jane@example.com")).toHaveLength(4); // (confirmation + invoice) failed, then both retried
     expect(sentTo(ADMIN)).toHaveLength(1); // not re-sent
     log = await outbox.listEmailLog();
     expect(log.find((l) => l.kind === "order-confirmation")).toMatchObject({ status: "sent", attempts: 1 }) // an explicit retry re-arms the counter;
     expect(log.find((l) => l.kind === "order-confirmation")!.lastError).toBeUndefined();
 
     await orderEmails.retryOrderEmails(order.id); // nothing more to send
-    expect(sendEmail).toHaveBeenCalledTimes(3);
+    expect(sendEmail).toHaveBeenCalledTimes(5);
   });
 
   it("stops automatic retries after the attempt limit, until an admin re-arms it", async () => {
@@ -386,7 +401,7 @@ describe("secure invoice downloads", () => {
     const body = Buffer.from(await res.arrayBuffer());
     expect(body.subarray(0, 5).toString()).toBe("%PDF-");
     // The download is the same invoice that was emailed.
-    expect(res.headers.get("content-disposition")).toContain(sentTo("alice@example.com")[0].attachments[0].filename);
+    expect(res.headers.get("content-disposition")).toContain(sentTo("alice@example.com").find((m) => m.attachments?.length)!.attachments[0].filename);
   });
 
   it("works by short order number too", async () => {
@@ -404,7 +419,8 @@ describe("secure invoice downloads", () => {
     await pending.savePendingOrder(snapshot({ razorpayOrderId: "order_2", customerEmail: "carol@example.com" }));
     await verifyPost(verifyReq("order_2", "pay_2"));
     const guestOrder = (await orders.getAllOrders()).find((o) => o.razorpayOrderId === "order_2")!;
-    expect((await accountGet(guestOrder.id, carol.cookie)).status).toBe(404);
+    // Never-verified accounts have no usable session at all.
+    expect((await accountGet(guestOrder.id, carol.cookie)).status).toBe(401);
     await auth.markEmailVerified(carol.id);
     expect((await accountGet(guestOrder.id, carol.cookie)).status).toBe(200);
   });
@@ -446,14 +462,20 @@ describe("secure invoice downloads", () => {
 });
 
 describe("account emails use the right sender", () => {
-  it("welcome + verification from hello@, reset + password-changed from reset@", async () => {
+  it("sign-up code and welcome, reset and password-changed emails all come from account@", async () => {
     const { POST: register } = await import("@/app/api/auth/register/route");
+    const { POST: registerVerify } = await import("@/app/api/auth/register/verify/route");
     const { POST: forgot } = await import("@/app/api/auth/forgot-password/route");
     const reg = await register(jsonRequest("http://x", { ip: "198.51.100.10", body: { email: "new@example.com", name: "New Person", password: "correct horse battery" } }));
-    expect(reg.status).toBe(201);
-    const froms = sendEmail.mock.calls.map((c) => c[0].from);
-    expect(froms).toEqual(["ShilpiKala <hello@shilpikala.com>", "ShilpiKala <hello@shilpikala.com>"]);
+    expect(reg.status).toBe(200);
+    expect(sendEmail.mock.calls.map((c) => [c[0].from, c[0].subject])).toEqual([
+      ["ShilpiKala Account <account@shilpikala.com>", "Verify your email address — ShilpiKala"],
+    ]);
+    const code = /code is: (\d{6})/.exec(sendEmail.mock.calls[0][0].text)![1];
+    const done = await registerVerify(jsonRequest("http://x", { ip: "198.51.100.10", body: { email: "new@example.com", code } }));
+    expect(done.status).toBe(201);
     const welcome = sendEmail.mock.calls.map((c) => c[0]).find((m) => /Welcome/.test(m.subject));
+    expect(welcome.from).toBe("ShilpiKala Account <account@shilpikala.com>");
     expect(welcome.html).toContain("New Person");
     expect(welcome.text).toContain("New Person");
 
@@ -461,7 +483,7 @@ describe("account emails use the right sender", () => {
     await forgot(jsonRequest("http://x", { ip: "198.51.100.11", body: { email: "new@example.com" } }));
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const reset = sendEmail.mock.calls[0][0];
-    expect(reset.from).toBe("ShilpiKala <reset@shilpikala.com>");
+    expect(reset.from).toBe("ShilpiKala Account <account@shilpikala.com>");
     expect(reset.subject).toMatch(/Reset your/);
     expect(reset.text).toMatch(/https:\/\/shop\.example\.com\/account\/reset-password\?token=/);
     expect(reset.html).toContain("expires in 1 hour");
@@ -469,17 +491,19 @@ describe("account emails use the right sender", () => {
     const token = /token=([A-Za-z0-9_-]+)/.exec(reset.text)![1];
     sendEmail.mockClear();
     const { POST: doReset } = await import("@/app/api/auth/reset-password/route");
-    const done = await doReset(jsonRequest("http://x", { ip: "198.51.100.12", body: { token, password: "another long passphrase" } }));
-    expect(done.status).toBe(200);
+    const finished = await doReset(jsonRequest("http://x", { ip: "198.51.100.12", body: { token, password: "another long passphrase" } }));
+    expect(finished.status).toBe(200);
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0]).toMatchObject({ from: "ShilpiKala <reset@shilpikala.com>", to: "new@example.com" });
+    expect(sendEmail.mock.calls[0][0]).toMatchObject({ from: "ShilpiKala Account <account@shilpikala.com>", to: "new@example.com" });
   });
 
-  it("registration succeeds even when the email provider is down", async () => {
+  it("sign-up reports a clear error, and creates no account, when the email provider is down", async () => {
     sendEmail.mockResolvedValue(false);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { POST: register } = await import("@/app/api/auth/register/route");
     const res = await register(jsonRequest("http://x", { ip: "198.51.100.20", body: { email: "x@example.com", name: "X Y", password: "correct horse battery" } }));
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(502);
+    expect(await auth.getCustomerByEmail("x@example.com")).toBeUndefined();
   });
 
   it("custom-art requests get a confirmation from hello@ and an alert to the owner", async () => {
@@ -493,5 +517,97 @@ describe("account emails use the right sender", () => {
     expect(receipt.from).toBe("ShilpiKala <hello@shilpikala.com>");
     expect(receipt.subject).toMatch(/Custom art request received/);
     expect(sentTo(ADMIN)).toHaveLength(1);
+  });
+});
+
+
+describe("order status emails (orders@) and refunds (invoice@)", () => {
+  async function placeOrder() {
+    await pending.savePendingOrder(snapshot());
+    await verifyPost(verifyReq());
+    sendEmail.mockClear();
+    return (await orders.getAllOrders())[0];
+  }
+  async function patch(id: string, body: object) {
+    const { PATCH } = await import("@/app/api/admin/orders/[id]/route");
+    return PATCH(jsonRequest(`http://x/api/admin/orders/${id}`, { method: "PATCH", body }), routeParams({ id }));
+  }
+
+  it("sends processing, shipped (with tracking), out-for-delivery and delivered from orders@, once each", async () => {
+    const order = await placeOrder();
+    expect((await patch(order.id, { status: "processing" })).status).toBe(200);
+    expect((await patch(order.id, { status: "shipped", carrier: "Delhivery", trackingNumber: "DL123456" })).status).toBe(200);
+    expect((await patch(order.id, { status: "out_for_delivery" })).status).toBe(200);
+    expect((await patch(order.id, { status: "delivered" })).status).toBe(200);
+    await patch(order.id, { status: "delivered" }); // no change → no duplicate
+
+    const mails = sendEmail.mock.calls.map((c) => c[0]);
+    expect(mails).toHaveLength(4);
+    for (const m of mails) {
+      expect(m.from).toBe("ShilpiKala Orders <orders@shilpikala.com>");
+      expect(m.to).toBe("jane@example.com");
+      expect(m.text).toContain(`SK-${order.orderNumber}`);
+      expect(m.text).toContain(order.id);
+    }
+    expect(mails.map((m) => m.subject.split(" | ")[0])).toEqual([
+      "Your ShilpiKala order is being prepared",
+      "Your ShilpiKala order is on its way",
+      "Out for delivery today",
+      "Delivered",
+    ]);
+    // Tracking details ride along on shipped / out for delivery / delivered.
+    expect(mails[1].text).toContain("Delhivery · Tracking number: DL123456");
+    expect(mails[1].html).toContain("DL123456");
+    expect(mails[2].text).toContain("DL123456");
+    expect(mails[0].text).toContain("Delivering to:");
+    expect(mails[0].text).toContain("1 Test St");
+  });
+
+  it("cancellation comes from orders@; the refund notice comes from invoice@", async () => {
+    const order = await placeOrder();
+    await patch(order.id, { status: "cancelled" });
+    await patch(order.id, { status: "refunded" });
+    const [cancelled, refunded] = sendEmail.mock.calls.map((c) => c[0]);
+    expect(cancelled.from).toBe("ShilpiKala Orders <orders@shilpikala.com>");
+    expect(cancelled.subject).toMatch(/was cancelled/);
+    expect(refunded.from).toBe("ShilpiKala Invoices <invoice@shilpikala.com>");
+    expect(refunded.subject).toMatch(/^Refund issued/);
+  });
+
+  it("rejects an unknown status", async () => {
+    const order = await placeOrder();
+    expect((await patch(order.id, { status: "teleported" })).status).toBe(400);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("sender selection", () => {
+  const load = async () => (await import("@/lib/email/config"));
+
+  it("maps each purpose to its own mailbox", async () => {
+    const c = await load();
+    expect(c.senderFor("orders")).toBe("ShilpiKala Orders <orders@shilpikala.com>");
+    expect(c.senderFor("invoice")).toBe("ShilpiKala Invoices <invoice@shilpikala.com>");
+    expect(c.senderFor("account")).toBe("ShilpiKala Account <account@shilpikala.com>");
+    expect(c.senderFor("general")).toBe("ShilpiKala <hello@shilpikala.com>");
+  });
+
+  it("falls back to the older variable names, then to EMAIL_FROM", async () => {
+    for (const n of ["ORDER_EMAIL_FROM", "INVOICE_EMAIL_FROM", "ACCOUNT_EMAIL_FROM", "EMAIL_GENERAL_FROM"]) vi.stubEnv(n, "");
+    vi.stubEnv("EMAIL_INVOICE_FROM", "billing@old.example");
+    vi.stubEnv("EMAIL_RESET_FROM", "reset@old.example");
+    vi.stubEnv("EMAIL_FROM", "shop@old.example");
+    const c = await load();
+    expect(c.senderFor("orders")).toContain("billing@old.example");
+    expect(c.senderFor("invoice")).toContain("billing@old.example");
+    expect(c.senderFor("account")).toContain("reset@old.example");
+    expect(c.senderFor("general")).toContain("shop@old.example");
+  });
+
+  it("reports nothing configured instead of guessing, and isEmailConfigured needs the API key", async () => {
+    for (const n of ["ORDER_EMAIL_FROM", "INVOICE_EMAIL_FROM", "ACCOUNT_EMAIL_FROM", "EMAIL_GENERAL_FROM", "EMAIL_INVOICE_FROM", "EMAIL_RESET_FROM", "EMAIL_FROM"]) vi.stubEnv(n, "");
+    const c = await load();
+    expect(c.senderFor("orders")).toBe("");
+    expect(c.isEmailConfigured()).toBe(false);
   });
 });

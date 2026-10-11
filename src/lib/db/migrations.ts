@@ -189,4 +189,27 @@ CREATE INDEX email_log_status_idx ON email_log(status, updated_at);
 CREATE INDEX email_log_order_idx ON email_log(order_id);
 `,
   },
+  {
+    id: "004_email_otps",
+    sql: `
+-- Pending registrations awaiting the emailed six-digit code. The account is
+-- only created (and email_verified set) once the server accepts the code.
+-- The code itself is never stored, only a salted hash; one row per email, so a
+-- new code replaces (invalidates) the previous one.
+CREATE TABLE email_otps (
+  email TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  code_salt TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_sent_at TIMESTAMPTZ NOT NULL,
+  send_window_started_at TIMESTAMPTZ NOT NULL,
+  sends_in_window INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX email_otps_expires_idx ON email_otps(expires_at);
+`,
+  },
 ];

@@ -209,7 +209,7 @@ describe("checkout flow: create-order → pay → verify-payment", () => {
 
     expect(await orderStore.getAllOrders()).toHaveLength(1);
     expect((await catalog.getProducts()).find((x) => x.id === p.id)?.stockQuantity).toBe(3);
-    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledTimes(2); // confirmation + invoice, once
   });
 
   it("an order id the server never created can't be turned into an order", async () => {

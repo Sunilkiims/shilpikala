@@ -4,8 +4,10 @@ import { emailConfig, isAdminNotificationConfigured, senderFor } from "@/lib/ema
 import { allSent, deliver, resetEmailAttempts, type DeliverOutcome } from "@/lib/email/outbox";
 import {
   adminOrderAlertEmail,
+  BILLING_STATUS_KINDS,
   orderConfirmationEmail,
   orderStatusEmail,
+  paymentInvoiceEmail,
   type OrderEmailContext,
   type StatusEmailKind,
 } from "@/lib/email/templates";
@@ -19,10 +21,13 @@ import { getOrderById } from "@/lib/orders/store";
 import type { StoredOrder } from "@/lib/orders/types";
 
 export const confirmationKey = (orderId: string) => `order-confirmation:${orderId}`;
+export const invoiceKey = (orderId: string) => `order-invoice:${orderId}`;
 export const adminKey = (orderId: string) => `order-admin:${orderId}`;
 
 export type OrderEmailOutcome = {
   customer: DeliverOutcome | "not-applicable";
+  /** Payment receipt + PDF invoice. */
+  invoice: DeliverOutcome | "not-applicable";
   admin: DeliverOutcome | "not-applicable";
 };
 
@@ -52,23 +57,27 @@ export function estimatedDeliveryText(): string {
 }
 
 /**
- * Sends the two order emails — customer confirmation and admin alert —
- * each with the PDF invoice attached. Safe to call any number of times
- * for the same order (webhook retries, page refreshes, cron): the outbox
+ * Sends the order emails — customer confirmation (orders@), payment
+ * receipt + PDF invoice (invoice@) and the admin alert (orders@, PDF attached) — safe to
+ * call any number of times for the same order (webhook retries, page refreshes, cron): the outbox
  * guarantees each is sent at most once, and a failure of one email never
  * prevents the other. Never throws.
  */
 export async function sendOrderEmails(order: StoredOrder): Promise<OrderEmailOutcome> {
-  const outcome: OrderEmailOutcome = { customer: "not-applicable", admin: "not-applicable" };
+  const outcome: OrderEmailOutcome = { customer: "not-applicable", invoice: "not-applicable", admin: "not-applicable" };
   try {
     const wantsCustomer = isValidEmail(order.customerEmail);
     const wantsAdmin = isAdminNotificationConfigured();
     const keys = [
-      ...(wantsCustomer ? [confirmationKey(order.id)] : []),
+      ...(wantsCustomer ? [confirmationKey(order.id), invoiceKey(order.id)] : []),
       ...(wantsAdmin ? [adminKey(order.id)] : []),
     ];
     if (keys.length > 0 && (await allSent(keys))) {
-      return { customer: wantsCustomer ? "skipped" : "not-applicable", admin: wantsAdmin ? "skipped" : "not-applicable" };
+      return {
+        customer: wantsCustomer ? "skipped" : "not-applicable",
+        invoice: wantsCustomer ? "skipped" : "not-applicable",
+        admin: wantsAdmin ? "skipped" : "not-applicable",
+      };
     }
 
     const invoice = await ensureInvoice(order.id);
@@ -83,18 +92,29 @@ export async function sendOrderEmails(order: StoredOrder): Promise<OrderEmailOut
       adminUrl: emailLink(`/admin/orders#order-${order.id}`),
     };
 
-    // Independent attempts: one failing never blocks the other.
+    // Independent attempts: one failing never blocks the others.
     if (wantsCustomer) {
+      // Order confirmation — from the orders mailbox, no attachment.
       outcome.customer = await deliver({
         kind: "order-confirmation",
         key: confirmationKey(order.id),
         to: order.customerEmail,
-        from: senderFor("invoice"),
+        from: senderFor("orders"),
         ...orderConfirmationEmail(ctx),
-        attachments,
         orderId: order.id,
         ...(order.customerId !== undefined ? { customerId: order.customerId } : {}),
       }).catch((e) => failed("customer", e));
+      // Payment receipt + PDF invoice — from the invoice mailbox.
+      outcome.invoice = await deliver({
+        kind: "order-invoice",
+        key: invoiceKey(order.id),
+        to: order.customerEmail,
+        from: senderFor("invoice"),
+        ...paymentInvoiceEmail(ctx),
+        attachments,
+        orderId: order.id,
+        ...(order.customerId !== undefined ? { customerId: order.customerId } : {}),
+      }).catch((e) => failed("invoice", e));
     }
     if (wantsAdmin) {
       outcome.admin = await deliver({
@@ -110,6 +130,7 @@ export async function sendOrderEmails(order: StoredOrder): Promise<OrderEmailOut
   } catch (error) {
     console.error(`[orders] Order emails for ${order.id} could not be prepared:`, error);
     if (outcome.customer === "not-applicable" && isValidEmail(order.customerEmail)) outcome.customer = "failed";
+    if (outcome.invoice === "not-applicable" && isValidEmail(order.customerEmail)) outcome.invoice = "failed";
     if (outcome.admin === "not-applicable" && isAdminNotificationConfigured()) outcome.admin = "failed";
   }
   return outcome;
@@ -120,7 +141,11 @@ function failed(who: string, error: unknown): DeliverOutcome {
   return "failed";
 }
 
-/** Shipped / cancelled / refunded notice to the customer. Sent once per status. */
+/**
+ * Order-status notice to the customer (processing, shipped, out for delivery,
+ * delivered, cancelled — from the orders mailbox; refunds — from the invoice
+ * mailbox). Sent once per status.
+ */
 export async function sendOrderStatusEmail(order: StoredOrder, kind: StatusEmailKind): Promise<DeliverOutcome> {
   if (!isValidEmail(order.customerEmail)) return "skipped";
   try {
@@ -128,7 +153,7 @@ export async function sendOrderStatusEmail(order: StoredOrder, kind: StatusEmail
       kind: "order-status",
       key: `order-status:${order.id}:${kind}`,
       to: order.customerEmail,
-      from: senderFor("invoice"),
+      from: senderFor(BILLING_STATUS_KINDS.includes(kind) ? "invoice" : "orders"),
       ...orderStatusEmail(kind, order, emailLink("/account")),
       orderId: order.id,
       ...(order.customerId !== undefined ? { customerId: order.customerId } : {}),
@@ -153,6 +178,7 @@ export async function findOrdersMissingEmails(): Promise<StoredOrder[]> {
         AND o.created_at < now() - interval '2 minutes'
         AND (
           NOT EXISTS (SELECT 1 FROM email_log e WHERE e.dedupe_key = 'order-confirmation:' || o.id AND e.status = 'sent')
+          OR NOT EXISTS (SELECT 1 FROM email_log e WHERE e.dedupe_key = 'order-invoice:' || o.id AND e.status = 'sent')
           OR ($1::boolean AND NOT EXISTS (SELECT 1 FROM email_log e WHERE e.dedupe_key = 'order-admin:' || o.id AND e.status = 'sent'))
         )
       ORDER BY o.created_at
@@ -179,6 +205,7 @@ export async function retryOrderEmails(orderId?: string): Promise<{ orders: numb
     const order = await getOrderById(orderId);
     if (!order) return { orders: 0, outcomes: [] };
     await resetEmailAttempts(confirmationKey(order.id));
+    await resetEmailAttempts(invoiceKey(order.id));
     await resetEmailAttempts(adminKey(order.id));
     orders = [order];
   } else {

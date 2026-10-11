@@ -56,7 +56,7 @@ All are documented in [`.env.example`](./.env.example). **Never commit real valu
 | `NEXT_PUBLIC_RAZORPAY_KEY_ID` | For payments | Razorpay Key ID (public by design). |
 | `RAZORPAY_KEY_SECRET` | For payments | Razorpay Key Secret — **server only**. |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Yes | Protects `/admin` and `/api/admin` (HTTP Basic). If either is empty the admin stays locked. Use a long random password. |
-| `RESEND_API_KEY` / `EMAIL_FROM` | For email | Order, shipping, verification and reset emails. Without them the site works but sends nothing. |
+| `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `INVOICE_EMAIL_FROM`, `ACCOUNT_EMAIL_FROM` | For email | Order, shipping, verification and reset emails. Without them the site works but sends nothing. |
 | `ADMIN_NOTIFICATION_EMAIL` | No | Receives new-order and new-inquiry alerts. |
 
 ## 3. Database
@@ -108,18 +108,21 @@ It replaces the demo catalogue with yours (keeping product ids), imports photos,
 
 | Email | From | To |
 |---|---|---|
-| Password reset, "password changed" notice | `EMAIL_RESET_FROM` (`reset@shilpikala.com`) | customer |
-| Welcome, email verification, contact / custom-art confirmation | `EMAIL_GENERAL_FROM` (`hello@shilpikala.com`) | customer |
-| **Order Confirmed – ShilpiKala \| Order #SK-1001** + PDF invoice | `ShilpiKala <invoice@shilpikala.com>` | customer |
-| **New Order Received – #SK-1001** + the same PDF invoice | `ShilpiKala Orders <invoice@shilpikala.com>` | `ADMIN_EMAIL` |
-| Shipped / cancelled / refunded notices | `EMAIL_INVOICE_FROM` | customer |
-| New inquiry alert | `EMAIL_GENERAL_FROM` | `ADMIN_EMAIL` |
+| **Order Confirmed – ShilpiKala \| Order #SK-1001** (order number + reference, no attachment) | `ORDER_EMAIL_FROM` (`orders@shilpikala.com`) | customer |
+| Order processing, shipped (with carrier + tracking), out for delivery, delivered, cancelled | `ORDER_EMAIL_FROM` | customer |
+| **Payment Received & Invoice SK/… – ShilpiKala \| Order #SK-1001** + PDF invoice | `INVOICE_EMAIL_FROM` (`invoice@shilpikala.com`) | customer |
+| Refund issued | `INVOICE_EMAIL_FROM` | customer |
+| **Verify your email address — ShilpiKala** (6-digit code), "you already have an account" notice, welcome, password reset, "password changed" notice | `ACCOUNT_EMAIL_FROM` (`account@shilpikala.com`) | customer |
+| **New Order Received – #SK-1001** + the same PDF invoice | `ShilpiKala Orders <ORDER_EMAIL_FROM>` | `ADMIN_EMAIL` |
+| Contact / custom-art receipt, new inquiry alert | `EMAIL_GENERAL_FROM` (`hello@shilpikala.com`) | customer / `ADMIN_EMAIL` |
+
+Status emails are sent when an admin moves an order into that status (Admin → Orders); each is sent once per order. Older variable names keep working (`EMAIL_INVOICE_FROM`, `EMAIL_RESET_FROM`) when the new ones are unset. Sign-up uses an emailed **6-digit code** (section 5.4); password reset still uses a link. **Admin → Emails** lists the four senders and checks each domain against your Resend account.
 
 Provider: **Resend** (kept - it was already integrated, is a proper transactional provider, supports attachments and idempotency keys). The API key lives only in `RESEND_API_KEY` (server-side). Every email is HTML + plain text.
 
 ### 5.2 Provider and DNS setup (you must do this)
 
-1. In Resend, **add and verify every domain you send from**. Only `shilpikala.com` is needed - all three senders (`reset@`, `hello@`, `invoice@`) are on it.
+1. In Resend, **add and verify every domain you send from**. Only `shilpikala.com` is needed - all senders (`orders@`, `invoice@`, `account@`, `hello@`) are on it. Resend verifies the **domain**, not individual mailboxes, so no separate setup per address is needed - but they must be real addresses if you want replies.
 2. For each domain, add the DNS records Resend shows you:
    - **SPF** - a `TXT` record (Resend gives you the exact value, usually on a `send.` subdomain) so Resend may send for you.
    - **DKIM** - the `TXT`/`CNAME` record(s) Resend gives you, which cryptographically sign your mail.
@@ -146,6 +149,25 @@ Provider: **Resend** (kept - it was already integrated, is a proper transactiona
 - Attached to both emails; also re-generated on demand (identical numbers) from the account page, the track-order page and Admin -> Orders. There are no public invoice URLs: a signed-in customer can only fetch their own orders (others get 404), guests need order number **and** matching email (rate limited), admin routes sit behind the admin login.
 - Seller details come from `BUSINESS_*`. **GST is shown only if `BUSINESS_GSTIN` is a valid GSTIN and `GST_RATE_PERCENT` is set**; nothing is invented. Prices are assumed to be GST-inclusive; intra-state sales show CGST+SGST, inter-state IGST. Have your accountant confirm this before you rely on it as a tax invoice.
 - The PDF uses the built-in Latin fonts, so non-Latin characters in names/addresses print as `?` on the PDF (the HTML emails show them correctly).
+
+### 5.4 Sign-up with an emailed code (OTP)
+
+1. **Create account** → `POST /api/auth/register` validates the details and emails a 6-digit code from `ACCOUNT_EMAIL_FROM`. **No account exists yet.**
+2. The person enters the code → `POST /api/auth/register/verify`. Only a correct, unexpired, unused code creates the account (`email_verified = true`), signs them in and sends the welcome email.
+3. **Resend** → `POST /api/auth/register/resend` issues a new code; the old one stops working.
+
+| Rule | Value |
+|---|---|
+| Code | 6 digits from `crypto.randomInt`; only a salted SHA-256 is stored (table `email_otps`, migration `004`); never logged or put in `email_log` |
+| Expiry / single use | 5 minutes; consumed by an atomic `DELETE`, so simultaneous submissions can't both succeed |
+| Wrong guesses | 5 per code, then locked until a new code is requested |
+| Resend | once per 60 s, at most 5 codes per address per hour |
+| Per-IP limits | register 10/h, verify 30/15 min, resend 10/h (in-memory — per server instance; the limits in the rows above are enforced in the database, so they hold on Vercel's many instances) |
+| Enumeration | register answers identically whether or not the address has an account; an existing owner gets a "you already have an account" email (max one per hour) instead of a code |
+| Unverified accounts | accounts created before this feature and never verified can't sign in: signing in with the right password emails them a code instead. Their old sessions stop working. Whoever proves they own the inbox with a code (by signing up again, or signing in) takes the account over |
+| Housekeeping | pending rows that expired over an hour ago are deleted on the next sign-up |
+
+If the email can't be sent the person sees an error and may retry immediately; no account is created. In local development (`next dev`) with no email provider configured, the code is printed to the terminal so sign-up can be tried; this never happens in production.
 
 ## 6. Admin
 

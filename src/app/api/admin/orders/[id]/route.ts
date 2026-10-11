@@ -32,9 +32,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     carrier: carrier === undefined ? undefined : carrier || null,
   });
 
-  // Tell the customer on the transition into shipped / cancelled / refunded.
+  // Tell the customer on each transition into a customer-facing status.
   // The outbox sends each status email at most once per order.
-  if (updated && status && status !== before.status && (status === "shipped" || status === "cancelled" || status === "refunded")) {
+  if (updated && status && status !== before.status && status !== "paid") {
     await sendOrderStatusEmail(updated, status);
   }
   return NextResponse.json({ order: updated });

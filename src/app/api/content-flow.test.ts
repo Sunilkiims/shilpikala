@@ -165,10 +165,14 @@ describe("PATCH /api/admin/orders/[id]", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
-  it("does not email for non-shipping transitions", async () => {
+  it("emails once on 'processing', and not for tracking-only edits or unchanged status", async () => {
     const { patch } = await setup();
     await patch({ status: "processing" });
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail.mock.calls[0][0].subject).toMatch(/being prepared/);
+    await patch({ trackingNumber: "T1" });
+    await patch({ status: "processing" });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
   it("rejects unknown statuses and unknown orders", async () => {

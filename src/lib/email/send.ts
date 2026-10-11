@@ -100,3 +100,57 @@ export async function sendEmail(input: SendEmailInput): Promise<boolean> {
     return fail(`network error: ${(error as Error).message}`.slice(0, 500));
   }
 }
+
+export type SenderCheck = {
+  /** Which message type this sender is for. */
+  kind: string;
+  /** The configured From header ("" when nothing is configured). */
+  from: string;
+  /** Domain part of the address. */
+  domain: string;
+  /**
+   * verified — Resend lists the domain as verified (any address on it may send)
+   * unverified — the domain is missing or not verified in Resend: sends will be rejected
+   * unknown — couldn't ask (no key, restricted send-only key, network error)
+   * missing — no sender configured for this type
+   */
+  status: "verified" | "unverified" | "unknown" | "missing";
+  note?: string;
+};
+
+const addressOf = (from: string) => (/<([^>]+)>/.exec(from)?.[1] ?? from).trim().toLowerCase();
+
+/**
+ * Checks each configured sender against the domains verified in the
+ * Resend account. Resend verifies whole domains, not single mailboxes, so
+ * an address works if (and only if) its domain is verified. A send-only
+ * API key can't list domains — then the answer is "unknown", not a guess.
+ */
+export async function checkSenders(senders: { kind: string; from: string }[]): Promise<SenderCheck[]> {
+  const base = senders.map((s) => ({ kind: s.kind, from: s.from, domain: addressOf(s.from).split("@")[1] ?? "" }));
+  const unknown = (note: string): SenderCheck[] =>
+    base.map((b) => (b.from ? { ...b, status: "unknown" as const, note } : { ...b, status: "missing" as const }));
+
+  if (!emailConfig.apiKey) return unknown("RESEND_API_KEY is not set");
+  try {
+    const response = await fetch("https://api.resend.com/domains", {
+      headers: { Authorization: `Bearer ${emailConfig.apiKey}` },
+      cache: "no-store",
+    });
+    if (response.status === 401 || response.status === 403) {
+      return unknown("This API key can only send, so it can't list domains. Check Domains in the Resend dashboard.");
+    }
+    if (!response.ok) return unknown(`Resend returned ${response.status}`);
+    const body = (await response.json()) as { data?: { name: string; status: string }[] };
+    const verified = new Set((body.data ?? []).filter((d) => d.status === "verified").map((d) => d.name.toLowerCase()));
+    return base.map((b) => {
+      if (!b.from) return { ...b, status: "missing" as const };
+      const ok = verified.has(b.domain) || [...verified].some((d) => b.domain.endsWith(`.${d}`));
+      return ok
+        ? { ...b, status: "verified" as const }
+        : { ...b, status: "unverified" as const, note: `${b.domain} is not a verified domain in Resend` };
+    });
+  } catch (error) {
+    return unknown(`Couldn't reach Resend: ${(error as Error).message}`);
+  }
+}
