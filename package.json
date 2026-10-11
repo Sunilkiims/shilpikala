@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/remove-stale-files.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/remove-stale-files.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "pretest": "node scripts/remove-stale-files.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "next typegen && tsc --noEmit",
