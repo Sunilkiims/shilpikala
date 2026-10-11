@@ -212,4 +212,126 @@ CREATE TABLE email_otps (
 CREATE INDEX email_otps_expires_idx ON email_otps(expires_at);
 `,
   },
+  {
+    id: "005_returns",
+    sql: `
+-- Delivery confirmation time: the 7-day return window starts here.
+-- Existing delivered orders are backfilled with the moment they were marked delivered.
+ALTER TABLE orders ADD COLUMN delivered_at TIMESTAMPTZ;
+UPDATE orders SET delivered_at = updated_at WHERE status = 'delivered' AND delivered_at IS NULL;
+
+-- Per-product override. No row = returnable and replaceable (the default).
+CREATE TABLE product_return_policies (
+  product_id INTEGER PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE,
+  returnable BOOLEAN NOT NULL DEFAULT true,
+  replaceable BOOLEAN NOT NULL DEFAULT true,
+  note TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE return_requests (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+  customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+  customer_email TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('return','replacement')),
+  reason TEXT NOT NULL,
+  description TEXT NOT NULL,
+  status TEXT NOT NULL,
+  -- Secret in the emailed tracking link (read-only status page).
+  track_token TEXT NOT NULL,
+  pickup_address JSONB NOT NULL,
+  refund_method TEXT NOT NULL DEFAULT 'original' CHECK (refund_method IN ('original','upi','bank')),
+  -- UPI id / bank details, AES-256-GCM encrypted; cleared once the refund completes.
+  refund_payout_enc TEXT,
+  delivered_at TIMESTAMPTZ NOT NULL,
+  deadline_at TIMESTAMPTZ NOT NULL,
+  pickup_scheduled_for TIMESTAMPTZ,
+  pickup_courier TEXT,
+  pickup_tracking TEXT,
+  rejection_reason TEXT,
+  admin_note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX return_requests_order_idx ON return_requests(order_id);
+CREATE INDEX return_requests_customer_idx ON return_requests(customer_id);
+CREATE INDEX return_requests_status_idx ON return_requests(status, created_at);
+
+CREATE TABLE return_request_items (
+  id SERIAL PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES return_requests(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  unit_price_paise INTEGER NOT NULL CHECK (unit_price_paise >= 0)
+);
+CREATE INDEX return_request_items_request_idx ON return_request_items(request_id);
+CREATE INDEX return_request_items_product_idx ON return_request_items(product_id);
+
+CREATE TABLE return_evidence (
+  id SERIAL PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES return_requests(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('image','video')),
+  filename TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  data BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX return_evidence_request_idx ON return_evidence(request_id);
+
+-- Append-only audit trail of every status change.
+CREATE TABLE return_status_history (
+  id SERIAL PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES return_requests(id) ON DELETE CASCADE,
+  from_status TEXT,
+  to_status TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  note TEXT,
+  -- Staff-only entries (never shown to the customer).
+  internal BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX return_status_history_request_idx ON return_status_history(request_id, id);
+
+CREATE TABLE refund_transactions (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES return_requests(id) ON DELETE RESTRICT,
+  order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+  amount_paise INTEGER NOT NULL CHECK (amount_paise > 0),
+  method TEXT NOT NULL CHECK (method IN ('razorpay','manual')),
+  status TEXT NOT NULL CHECK (status IN ('pending','processing','completed','failed')),
+  idempotency_key TEXT NOT NULL UNIQUE,
+  razorpay_payment_id TEXT,
+  razorpay_refund_id TEXT UNIQUE,
+  payout_reference TEXT,
+  failure_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ
+);
+CREATE INDEX refund_transactions_order_idx ON refund_transactions(order_id);
+-- At most one refund per request that is not a failed attempt: this is what makes
+-- two simultaneous refund clicks (or a retry racing a webhook) safe.
+CREATE UNIQUE INDEX refund_transactions_one_live_idx ON refund_transactions(request_id)
+  WHERE status IN ('pending','processing','completed');
+
+CREATE TABLE replacement_shipments (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL UNIQUE REFERENCES return_requests(id) ON DELETE RESTRICT,
+  order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+  status TEXT NOT NULL CHECK (status IN ('processing','dispatched','delivered')),
+  -- Internal tracking id (RPL-…); the courier's own number is separate.
+  tracking_number TEXT NOT NULL UNIQUE,
+  carrier TEXT,
+  carrier_tracking TEXT,
+  items JSONB NOT NULL,
+  dispatched_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+`,
+  },
 ];

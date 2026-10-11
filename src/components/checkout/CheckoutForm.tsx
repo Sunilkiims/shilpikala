@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
 import { Button } from "@/components/ui/Button";
@@ -40,9 +41,11 @@ function loadRazorpayScript(): Promise<boolean> {
 type CheckoutFormProps = {
   /** Signed-in customer's saved details (plain data — no callbacks cross the server/client boundary). */
   prefill?: { email: string; address?: Address };
+  /** From the server, so the text follows RETURN_WINDOW_DAYS. */
+  returnWindowDays?: number;
 };
 
-export function CheckoutForm({ prefill }: CheckoutFormProps = {}) {
+export function CheckoutForm({ prefill, returnWindowDays = siteConfig.business.returnWindowDays }: CheckoutFormProps = {}) {
   const router = useRouter();
   const { items, subtotal, clear } = useCart();
   const shipping = calculateShipping(subtotal);
@@ -279,6 +282,12 @@ export function CheckoutForm({ prefill }: CheckoutFormProps = {}) {
             {status === "submitting" ? "Starting payment…" : "Pay Now"}
           </Button>
         </div>
+        <p className="mt-4 text-xs leading-relaxed text-earth-brown/75">
+          Easy returns and replacements for damaged or incorrect items within {returnWindowDays} days of delivery.{" "}
+          <Link href="/return-refund-policy" className="text-terracotta underline underline-offset-2 hover:text-terracotta-deep">
+            Return &amp; refund policy
+          </Link>
+        </p>
       </div>
     </form>
   );

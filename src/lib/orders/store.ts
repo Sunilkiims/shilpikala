@@ -2,6 +2,7 @@ import type { Address } from "@/types/catalog";
 import type { PricedLineItem } from "@/lib/checkout/pricing";
 import { parseOrderNumber, type NewOrder, type OrderStatus, type StoredOrder } from "@/lib/orders/types";
 import { getDb } from "@/lib/db";
+import type { Db } from "@/lib/db/client";
 import { iso, isUniqueViolation, num } from "@/lib/db/rows";
 
 type OrderRow = {
@@ -21,6 +22,7 @@ type OrderRow = {
   status: OrderStatus;
   tracking_number: string | null;
   carrier: string | null;
+  delivered_at: Date | string | null;
   created_at: Date | string;
 };
 
@@ -44,6 +46,7 @@ function toOrder(r: OrderRow): StoredOrder {
   if (r.payment_method) order.paymentMethod = r.payment_method;
   if (r.tracking_number) order.trackingNumber = r.tracking_number;
   if (r.carrier) order.carrier = r.carrier;
+  if (r.delivered_at) order.deliveredAt = iso(r.delivered_at);
   return order;
 }
 
@@ -80,6 +83,12 @@ async function one(where: string, param: unknown): Promise<StoredOrder | undefin
 
 export const getOrderByRazorpayOrderId = (id: string) => one("razorpay_order_id = $1", id);
 export const getOrderById = (id: string) => one("id = $1", id);
+
+/** Same as getOrderById but through a given handle — required inside a transaction (PGlite has a single connection). */
+export async function getOrderByIdWith(db: Db, id: string): Promise<StoredOrder | undefined> {
+  const res = await db.query<OrderRow>("SELECT * FROM orders WHERE id = $1 LIMIT 1", [id]);
+  return res.rows[0] ? toOrder(res.rows[0]) : undefined;
+}
 export const getOrderByPaymentId = (paymentId: string) => one("razorpay_payment_id = $1", paymentId);
 
 /**
@@ -129,14 +138,26 @@ export function getOrdersForAccount(customer: {
 
 export async function updateOrderFulfilment(
   id: string,
-  patch: { status?: OrderStatus; trackingNumber?: string | null; carrier?: string | null }
+  patch: {
+    status?: OrderStatus;
+    trackingNumber?: string | null;
+    carrier?: string | null;
+    /** Corrects the confirmed delivery time (ISO). Ignored unless the order is, or becomes, delivered. */
+    deliveredAt?: string;
+  }
 ): Promise<StoredOrder | undefined> {
   const db = await getDb();
+  // delivered_at: an explicit correction wins; otherwise the first time the
+  // order becomes "delivered" stamps it, and it is never silently moved after.
   const res = await db.query<OrderRow>(
     `UPDATE orders SET
         status = COALESCE($2, status),
         tracking_number = CASE WHEN $3::boolean THEN $4 ELSE tracking_number END,
         carrier = CASE WHEN $5::boolean THEN $6 ELSE carrier END,
+        delivered_at = CASE
+          WHEN $7::timestamptz IS NOT NULL AND COALESCE($2, status) = 'delivered' THEN $7::timestamptz
+          WHEN COALESCE($2, status) = 'delivered' AND delivered_at IS NULL THEN now()
+          ELSE delivered_at END,
         updated_at = now()
       WHERE id = $1 RETURNING *`,
     [
@@ -144,6 +165,7 @@ export async function updateOrderFulfilment(
       patch.status ?? null,
       patch.trackingNumber !== undefined, patch.trackingNumber ?? null,
       patch.carrier !== undefined, patch.carrier ?? null,
+      patch.deliveredAt ?? null,
     ]
   );
   return res.rows[0] ? toOrder(res.rows[0]) : undefined;

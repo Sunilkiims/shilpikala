@@ -4,6 +4,7 @@ import { Container } from "@/components/ui/Container";
 const adminNav = [
   { label: "Dashboard", href: "/admin" },
   { label: "Orders", href: "/admin/orders" },
+  { label: "Returns", href: "/admin/returns" },
   { label: "Products", href: "/admin/products" },
   { label: "Categories", href: "/admin/categories" },
   { label: "Reviews", href: "/admin/reviews" },

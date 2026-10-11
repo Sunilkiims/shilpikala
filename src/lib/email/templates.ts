@@ -71,9 +71,9 @@ export function layout(opts: { preheader: string; heading: string; body: string;
 </td></tr></table></body></html>`;
 }
 
-const p = (html: string) => `<p style="font-size:15px;line-height:1.65;color:${C.brown};margin:0 0 16px;">${html}</p>`;
+export const p = (html: string) => `<p style="font-size:15px;line-height:1.65;color:${C.brown};margin:0 0 16px;">${html}</p>`;
 
-function button(label: string, url: string): string {
+export function button(label: string, url: string): string {
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:6px 0 20px;"><tr>
     <td style="background:${C.terracotta};border-radius:2px;">
       <a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 26px;font-family:${SANS};font-size:15px;color:#ffffff;text-decoration:none;">${escapeHtml(label)}</a>

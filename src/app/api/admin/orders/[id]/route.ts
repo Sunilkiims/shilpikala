@@ -23,6 +23,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const trackingNumber = clean(body.trackingNumber, 100);
   const carrier = clean(body.carrier, 60);
 
+  let deliveredAt: string | undefined;
+  if (body.deliveredAt !== undefined && body.deliveredAt !== "") {
+    const when = typeof body.deliveredAt === "string" ? new Date(body.deliveredAt) : new Date(NaN);
+    // A delivery in the future would hold the return window open indefinitely.
+    if (Number.isNaN(when.getTime()) || when.getTime() > Date.now() + 5 * 60_000) {
+      return NextResponse.json({ error: "invalid_delivered_at" }, { status: 400 });
+    }
+    deliveredAt = when.toISOString();
+  }
+
   const before = await getOrderById(id);
   if (!before) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
@@ -30,6 +40,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     status,
     trackingNumber: trackingNumber === undefined ? undefined : trackingNumber || null,
     carrier: carrier === undefined ? undefined : carrier || null,
+    ...(deliveredAt ? { deliveredAt } : {}),
   });
 
   // Tell the customer on each transition into a customer-facing status.

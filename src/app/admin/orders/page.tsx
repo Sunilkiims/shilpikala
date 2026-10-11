@@ -4,6 +4,7 @@ import { formatPrice } from "@/lib/utils/currency";
 import { OrderFulfilmentForm } from "@/components/admin/OrderFulfilmentForm";
 import { getAllOrders } from "@/lib/orders/store";
 import { formatOrderNumber } from "@/lib/orders/types";
+import { formatDateTime as formatDateIST } from "@/lib/returns/format";
 
 export const metadata: Metadata = {
   title: "Orders — Admin",
@@ -82,6 +83,7 @@ export default async function AdminOrdersPage() {
                 status={order.status}
                 trackingNumber={order.trackingNumber}
                 carrier={order.carrier}
+                deliveredAtLabel={order.deliveredAt ? formatDateIST(order.deliveredAt) : undefined}
               />
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">

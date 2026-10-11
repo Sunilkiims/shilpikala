@@ -36,6 +36,8 @@ export type StoredOrder = {
   paymentMethod?: string;
   trackingNumber?: string;
   carrier?: string;
+  /** When delivery was confirmed (set when the order is marked delivered). Starts the return window. */
+  deliveredAt?: string;
   createdAt: string;
 };
 

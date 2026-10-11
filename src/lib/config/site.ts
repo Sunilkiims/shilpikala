@@ -63,7 +63,7 @@ export const siteConfig = {
       { label: "About", href: "/about" },
       { label: "Contact", href: "/contact" },
       { label: "Shipping", href: "/shipping" },
-      { label: "Returns", href: "/returns" },
+      { label: "Returns & Refunds", href: "/return-refund-policy" },
     ] satisfies NavLink[],
     customer: [
       { label: "My Account", href: "/account" },

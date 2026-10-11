@@ -15,6 +15,7 @@ const staticPaths = [
   "/faq",
   "/shipping",
   "/returns",
+  "/return-refund-policy",
   "/privacy",
   "/terms",
   "/track-order",

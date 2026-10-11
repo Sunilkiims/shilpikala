@@ -19,6 +19,8 @@ export type EmailKind =
   | "order-invoice"
   | "order-admin"
   | "order-status"
+  | "return-update"
+  | "return-admin"
   | "welcome"
   | "verify-email"
   | "register-otp"

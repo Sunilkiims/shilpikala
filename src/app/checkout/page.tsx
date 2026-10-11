@@ -5,6 +5,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { getCurrentCustomer } from "@/lib/auth/session";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
+import { returnWindowDays } from "@/lib/returns/config";
 
 export const metadata: Metadata = buildMetadata({
   title: "Checkout",
@@ -31,6 +32,7 @@ export default async function CheckoutPage() {
       <div className="mt-10">
         <CheckoutForm
           prefill={customer ? { email: customer.email, address: customer.address } : undefined}
+          returnWindowDays={returnWindowDays()}
         />
       </div>
     </Container>

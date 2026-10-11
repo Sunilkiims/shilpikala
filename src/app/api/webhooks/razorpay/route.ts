@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { finalizeVerifiedPayment } from "@/lib/orders/finalize";
 import { sendOrderStatusEmail } from "@/lib/orders/orderEmails";
 import { getOrderByPaymentId, updateOrderFulfilment } from "@/lib/orders/store";
+import { handleRefundWebhook } from "@/lib/returns/workflow";
 
 /**
  * Razorpay → us. This is the server-to-server confirmation that does not
@@ -11,7 +12,7 @@ import { getOrderByPaymentId, updateOrderFulfilment } from "@/lib/orders/store";
  * Setup (Razorpay Dashboard → Settings → Webhooks):
  *   URL    https://<your-domain>/api/webhooks/razorpay
  *   Secret (any strong string) → RAZORPAY_WEBHOOK_SECRET
- *   Events payment.captured, order.paid, refund.processed, payment.failed
+ *   Events payment.captured, order.paid, refund.processed, refund.failed, payment.failed
  *
  * Authenticity: HMAC-SHA256 of the RAW body, compared in constant time.
  * Retries are harmless — finalizeVerifiedPayment is idempotent.
@@ -26,7 +27,7 @@ function validSignature(rawBody: string, signature: string | null, secret: strin
 }
 
 type PaymentEntity = { id?: string; order_id?: string; method?: string; status?: string };
-type RefundEntity = { payment_id?: string };
+type RefundEntity = { id?: string; payment_id?: string; status?: string; notes?: unknown; error_description?: string; amount?: number };
 type WebhookEvent = {
   event?: string;
   payload?: {
@@ -68,10 +69,21 @@ export async function POST(request: Request) {
         }
         break;
       }
+      case "refund.failed": {
+        const refund = event.payload?.refund?.entity;
+        if (refund) await handleRefundWebhook(refund, true);
+        break;
+      }
       case "refund.processed": {
-        const paymentId = event.payload?.refund?.entity?.payment_id;
+        const refund = event.payload?.refund?.entity;
+        // A refund created by the returns system settles that request (and does NOT
+        // mark the whole order refunded — it may be a partial refund).
+        if (refund && (await handleRefundWebhook(refund, false))) break;
+        const paymentId = refund?.payment_id;
         const order = paymentId ? await getOrderByPaymentId(paymentId) : undefined;
-        if (order && order.status !== "refunded") {
+        // A partial refund (amount below the order total) must not flip the whole order to "refunded".
+        const full = typeof refund?.amount !== "number" || !order || refund.amount >= Math.round(order.amount * 100);
+        if (order && full && order.status !== "refunded") {
           const updated = await updateOrderFulfilment(order.id, { status: "refunded" });
           if (updated) await sendOrderStatusEmail(updated, "refunded");
         }

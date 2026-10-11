@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { Container } from "@/components/ui/Container";
@@ -12,6 +13,8 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/seo/structuredData";
 import { formatPrice } from "@/lib/utils/currency";
 import { getReviewsByProductId } from "@/lib/reviews/store";
+import { returnWindowDays } from "@/lib/returns/config";
+import { getProductPolicy } from "@/lib/returns/store";
 import {
   getAllProducts,
   getProductBySlug,
@@ -53,9 +56,10 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   const primaryCategory = product.categories[0];
-  const [relatedCandidates, approvedReviews] = await Promise.all([
+  const [relatedCandidates, approvedReviews, returnPolicy] = await Promise.all([
     primaryCategory ? getProductsByCategorySlug(primaryCategory.slug) : [],
     getReviewsByProductId(product.id, "approved"),
+    getProductPolicy(product.id),
   ]);
   const related = relatedCandidates
     .filter((candidate) => candidate.id !== product.id)
@@ -130,6 +134,15 @@ export default async function ProductPage({ params }: PageProps) {
           <div className="mt-5">
             <WishlistButton productId={product.id} productName={product.name} />
           </div>
+
+          <p className="mt-6 max-w-md text-xs leading-relaxed text-earth-brown/75">
+            {returnPolicy.returnable || returnPolicy.replaceable
+              ? `Damaged or not as described? ${returnPolicy.returnable ? "Returns" : "Replacements"}${returnPolicy.returnable && returnPolicy.replaceable ? " and replacements" : ""} within ${returnWindowDays()} days of delivery.`
+              : "This piece is made to order and is not eligible for returns or replacements. Your statutory rights are unaffected."}{" "}
+            <Link href="/return-refund-policy" className="text-terracotta underline underline-offset-2 hover:text-terracotta-deep">
+              Return &amp; refund policy
+            </Link>
+          </p>
         </div>
       </div>
 

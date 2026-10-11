@@ -8,6 +8,9 @@ import { getCurrentCustomer } from "@/lib/auth/session";
 import { getOrdersForAccount } from "@/lib/orders/store";
 import { formatOrderNumber } from "@/lib/orders/types";
 import { formatPrice } from "@/lib/utils/currency";
+import { StatusBadge } from "@/components/returns/Tracking";
+import { listReturnsForCustomer } from "@/lib/returns/store";
+import { formatDate as formatReturnDate } from "@/lib/returns/format";
 
 export const metadata: Metadata = {
   ...buildMetadata({ title: "My Account", path: "/account" }),
@@ -50,7 +53,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     );
   }
 
-  const orders = await getOrdersForAccount(customer);
+  const [orders, returns] = await Promise.all([getOrdersForAccount(customer), listReturnsForCustomer(customer)]);
 
   return (
     <Container className="py-12 sm:py-16">
@@ -97,7 +100,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                 <p className="mt-1 text-xs text-earth-brown/70">
                   Order {formatOrderNumber(order.orderNumber)} · Reference: {order.id}
                 </p>
-                <p className="mt-2 text-sm">
+                <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                  <Link
+                    href={`/account/orders/${order.id}`}
+                    className="text-terracotta underline underline-offset-2 hover:text-terracotta-deep"
+                  >
+                    {order.status === "delivered" ? "Order details · Return / Replace" : "Order details"}
+                  </Link>
                   <a
                     href={`/api/account/orders/${order.id}/invoice`}
                     className="text-terracotta underline underline-offset-2 hover:text-terracotta-deep"
@@ -110,6 +119,33 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </ul>
         )}
       </section>
+
+      {returns.length > 0 && (
+        <section className="mt-14" aria-labelledby="returns-heading">
+          <h2 id="returns-heading" className="text-2xl text-charcoal">Returns &amp; replacements</h2>
+          <ul className="mt-6 divide-y divide-earth-brown/15 border-y border-earth-brown/15">
+            {returns.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
+                <div>
+                  <Link href={`/account/returns/${r.id}`} className="font-mono text-sm text-terracotta underline underline-offset-2 hover:text-terracotta-deep">{r.id}</Link>
+                  <p className="text-xs text-earth-brown/75">
+                    {r.type === "return" ? "Return & refund" : "Replacement"} · {r.items.map((i) => `${i.name} × ${i.quantity}`).join(", ")} · {formatReturnDate(r.createdAt)}
+                  </p>
+                </div>
+                <StatusBadge status={r.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <p className="mt-10 text-sm text-earth-brown/75">
+        Need to send something back?{" "}
+        <Link href="/return-refund-policy" className="text-terracotta underline underline-offset-2 hover:text-terracotta-deep">
+          Read our return &amp; refund policy
+        </Link>
+        .
+      </p>
 
       <section className="mt-14" aria-labelledby="profile-heading">
         <h2 id="profile-heading" className="mb-6 text-2xl text-charcoal">Your details</h2>
