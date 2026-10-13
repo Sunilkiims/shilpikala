@@ -86,7 +86,7 @@ export function ProductCarousel({ heading, subtitle, badge, products, showDiscou
           ref={scroller}
           onScroll={measure}
           aria-label={heading ? `${heading}, scroll sideways for more` : "Products"}
-          className="flex snap-x gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] sm:gap-4 [&::-webkit-scrollbar]:hidden"
+          className="relative flex snap-x gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] sm:gap-4 [&::-webkit-scrollbar]:hidden"
         >
           {products.map((p) => {
             const card = (
