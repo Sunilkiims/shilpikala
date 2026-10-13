@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { MandalaMotif } from "@/components/sections/MandalaMotif";
 import { siteConfig } from "@/lib/config/site";
 
-export function Hero() {
+export function Hero({ headingAs: Heading = "h1" }: { headingAs?: "h1" | "h2" }) {
   return (
     <section className="overflow-hidden">
       <Container className="grid items-center gap-12 py-16 sm:py-24 md:grid-cols-12 md:gap-8">
@@ -15,9 +15,9 @@ export function Hero() {
             {siteConfig.tagline}
           </p>
 
-          <h1 className="mt-6 max-w-xl text-4xl leading-[1.15] text-charcoal sm:text-5xl">
+          <Heading className="mt-6 max-w-xl text-4xl leading-[1.15] text-charcoal sm:text-5xl">
             Where tradition meets contemporary artistry.
-          </h1>
+          </Heading>
 
           <p className="mt-6 max-w-md text-base leading-relaxed text-earth-brown/80">
             {siteConfig.description}

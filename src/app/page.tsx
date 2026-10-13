@@ -1,4 +1,3 @@
-import { Hero } from "@/components/sections/Hero";
 import { FeaturedProducts } from "@/components/sections/FeaturedProducts";
 import { CategoryPreview } from "@/components/sections/CategoryPreview";
 import { BrandStatement } from "@/components/sections/BrandStatement";
@@ -12,8 +11,8 @@ export const revalidate = 60;
 export default function Home() {
   return (
     <>
+      <h1 className="sr-only">ShilpiKala — handmade Mandala Art and Lipan Art</h1>
       <HeroAds />
-      <Hero />
       <HomeCarousels part="first" />
       <HomeCategoryAds />
       <HomeCarousels part="rest" />
