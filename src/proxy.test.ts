@@ -127,3 +127,26 @@ describe("admin proxy — brute-force lockout", () => {
     expect(response.status).toBe(401);
   });
 });
+
+describe("admin proxy — advertisement management is covered", () => {
+  beforeEach(() => load({ configured: true }));
+
+  const paths = [
+    "/admin/ads", "/admin/ads/new", "/admin/ads/3", "/admin/ads/collections",
+    "/api/admin/ads", "/api/admin/ads/3", "/api/admin/ads/media", "/api/admin/ads/settings",
+    "/api/admin/ads/preview-products", "/api/admin/collections", "/api/admin/collections/2",
+  ];
+
+  it("refuses every ads/collections page and API without credentials, and with wrong ones", () => {
+    // A different client address per path, so the failed-login rate limit never interferes.
+    paths.forEach((path, i) => {
+      const ip = `203.0.113.${100 + i}`;
+      expect(proxy(adminRequest({ path, ip })).status, path).toBe(401);
+      expect(proxy(adminRequest({ path, ip, auth: basicAuthHeader("admin", "nope") })).status, path).toBe(401);
+    });
+  });
+
+  it("lets the administrator through", () => {
+    for (const path of paths) expect(proxy(adminRequest({ path, auth: good })).status, path).toBe(200);
+  });
+});

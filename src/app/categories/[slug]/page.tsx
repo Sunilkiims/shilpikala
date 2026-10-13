@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductGrid } from "@/components/product/ProductGrid";
+import { CategoryPageAds } from "@/components/ads/HomeAds";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { buildBreadcrumbSchema } from "@/lib/seo/structuredData";
 import {
@@ -15,7 +16,7 @@ import {
 
 // Re-read on each request after the first 5 minutes, so categories
 // added or edited in the admin area show up without a redeploy.
-export const revalidate = 300;
+export const revalidate = 60;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -63,12 +64,18 @@ export default async function CategoryPage({ params }: PageProps) {
         <SectionHeading title={category.name} description={category.description} />
       </div>
 
+      <div className="mt-8">
+        <CategoryPageAds categoryId={category.id} position="top" />
+      </div>
+
       <div className="mt-10">
         <ProductGrid
           products={categoryProducts}
           emptyMessage="Nothing in this category yet — check back soon."
         />
       </div>
+
+      <CategoryPageAds categoryId={category.id} position="bottom" />
     </Container>
   );
 }

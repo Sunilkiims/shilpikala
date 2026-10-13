@@ -363,4 +363,71 @@ INSERT INTO customer_addresses (customer_id, address, is_default)
 SELECT id, address, true FROM customers WHERE address IS NOT NULL;
 `,
   },
+  {
+    id: "007_ads_promotions",
+    sql: `
+-- Uploaded ad artwork. Kept in its own table (never inside the ads rows), served by
+-- /media/ads/[id] with immutable caching, same approach as product photos.
+CREATE TABLE ad_media (
+  id SERIAL PRIMARY KEY,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  animated BOOLEAN NOT NULL DEFAULT false,
+  data BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Hand-curated sets of products that an ad (or anything else) can link to: /collections/[slug].
+CREATE TABLE collections (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  description TEXT,
+  product_ids JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE ads (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('hero','carousel','category_banner','gif')),
+  placement TEXT NOT NULL CHECK (placement IN ('home_hero','home_carousel','home_category','category_page')),
+  heading TEXT,
+  subtitle TEXT,
+  badge TEXT,
+  cta_text TEXT,
+  desktop_media_id INTEGER REFERENCES ad_media(id) ON DELETE SET NULL,
+  mobile_media_id INTEGER REFERENCES ad_media(id) ON DELETE SET NULL,
+  thumb_media_id INTEGER REFERENCES ad_media(id) ON DELETE SET NULL,
+  -- Where a click goes. dest_ref holds a product/category/collection id, a route, or a URL.
+  dest_type TEXT NOT NULL DEFAULT 'none' CHECK (dest_type IN ('none','product','category','collection','products','route','external')),
+  dest_ref TEXT,
+  dest_product_ids JSONB NOT NULL DEFAULT '[]',
+  -- category_page placement: which category it shows on (NULL = every category page).
+  category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
+  -- Product carousel configuration.
+  source_type TEXT CHECK (source_type IN ('manual','category','collection','new_arrivals','on_sale','bestsellers')),
+  source_ref INTEGER,
+  product_ids JSONB NOT NULL DEFAULT '[]',
+  max_items INTEGER NOT NULL DEFAULT 12,
+  show_discount BOOLEAN NOT NULL DEFAULT true,
+  starts_at TIMESTAMPTZ,
+  ends_at TIMESTAMPTZ,
+  priority INTEGER NOT NULL DEFAULT 0,
+  position INTEGER NOT NULL DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  published BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ads_placement_idx ON ads(placement, published, enabled);
+
+CREATE TABLE ad_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+`,
+  },
 ];

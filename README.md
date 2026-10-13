@@ -207,10 +207,44 @@ Visit `/admin` (browser asks for `ADMIN_USERNAME` / `ADMIN_PASSWORD`). Ten faile
 * **Orders** – change status (paid → processing → shipped → delivered / cancelled / refunded) and add carrier + tracking. Moving to *shipped* emails the customer once. Marking *delivered* stamps the delivery time that starts the return window (you can correct it).
 * **Returns** – requests with filters, search, evidence, approve / reject / pickup / inspection / refund / replacement actions, audit history, and per-product return policies (section 5.5).
 * **Products / Categories** – create, edit, delete; upload photos (JPEG/PNG/WebP/GIF, ≤ 5 MB each).
+* **Ads & Promotions** – homepage banners, GIF ads and product carousels (section 6.1).
 * **Reviews** – approve or reject (only verified purchasers can submit).
 * **Inquiries** – contact and custom-art requests, with status.
 * **Blog** – plain text; blank line = new paragraph, `## ` = heading. Drafts are private.
 * **Payments** – verified payments needing manual reconciliation.
+
+### 6.1 Ads & Promotions
+
+Admin → **Ads & Promotions**. Nothing promotional is hard-coded: every banner and carousel is a database record.
+
+**Ad types and where they appear**
+
+| Type | Placements |
+|---|---|
+| Festive hero banner | Homepage hero (swipeable slideshow, arrows, dots, optional autoplay) |
+| Product deal carousel | Homepage carousel row(s); category pages |
+| Category promotion | Homepage category section; category pages (one category or all) |
+| GIF advertisement | Homepage hero, homepage category section, category pages |
+
+Homepage order: hero slideshow → your existing brand hero → first carousel → category promotions → remaining carousels → existing "New from the studio", categories and brand sections. With no live ads the homepage looks exactly as before.
+
+**Creating an ad** (*New advertisement*): name, type, customer heading/subtitle/badge/button text; desktop and mobile artwork (JPEG, PNG, WebP or animated GIF, ≤ 4 MB, checked from the file's bytes; SVG/HTML refused); placement; destination; start/end, priority, enabled; **Publish** or **Save as draft**. The preview shows desktop and phone width, image size and aspect ratio, and the click target; GIFs animate.
+
+**Destinations**: a product, a category, a collection, several hand-picked products (opens a listing page, `/promotions/<id>`), a page on this site (`/…`, never `/admin` or `/api`), or an external `http(s)` URL (opens in a new tab). `javascript:`, `data:` and similar are rejected. If the target is later deleted the ad stops showing on the site and is flagged in the list.
+
+**Carousels** take products from: hand-picked (reorderable), a category, a collection, newest, on sale (biggest discount first) or bestsellers (units in paid orders; hidden until you have orders). Names, prices, photos and stock always come from the live catalogue; a discount badge shows only when a real sale price is lower than the regular price.
+
+**Collections** (*Ads & Promotions → Collections*): hand-picked product groups with their own page at `/collections/<slug>`.
+
+**Status**: Draft, Scheduled (start in the future), Active, Expired (end passed), Disabled. The list can be filtered by type or status, searched by name, and filtered by placement, category and date; ↑ ↓ change the order (higher priority first, then list order). Deleting asks for confirmation.
+
+**Timing**: admin changes appear immediately. Start/end times are honoured by a 60-second page refresh, so a campaign starts or ends within about a minute of its time (no admin action needed). The settings box on the Ads page controls hero autoplay (off, or every 3–30 s). Autoplay also stops on hover/touch and for visitors who prefer reduced motion.
+
+**Media storage**: artwork is stored in the `ad_media` table (separate from the `ads` rows) and served from `/media/ads/<id>` byte-for-byte with immutable caching, so GIFs keep animating. This is the same approach as product photos and needs no extra service or environment variable. The 4 MB cap keeps uploads under Vercel's 4.5 MB request limit. If you later want a CDN/Blob store, only `src/lib/ads/store.ts` (`createMedia` / `getMediaData`) and `/media/ads` need to change.
+
+**Security**: all `/admin/**` pages and `/api/admin/**` endpoints (including every ads and collections endpoint) sit behind the admin sign-in in `src/proxy.ts`, which fails closed. Uploads are identified from their bytes, size- and dimension-limited, and never executed or re-encoded.
+
+**Database change**: migration `007_ads_promotions` adds `ad_media`, `ads`, `collections`, `ad_settings`. It only creates new tables; products, orders, users and payments are untouched. Migrations run automatically on start (`npm run dev` / first request in production). No manual command is needed.
 
 ## 7. Deployment
 

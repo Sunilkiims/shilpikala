@@ -7,6 +7,7 @@ const adminNav = [
   { label: "Returns", href: "/admin/returns" },
   { label: "Products", href: "/admin/products" },
   { label: "Categories", href: "/admin/categories" },
+  { label: "Ads & Promotions", href: "/admin/ads" },
   { label: "Reviews", href: "/admin/reviews" },
   { label: "Inquiries", href: "/admin/inquiries" },
   { label: "Blog", href: "/admin/blog" },
