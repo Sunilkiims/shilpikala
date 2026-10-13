@@ -12,7 +12,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const STALE = [
   "src/app/api/search",
   "src/components/cart/OrderSummary.tsx",
-  "src/components/cart/QuickAdd.tsx",
   "src/components/header/AccountLink.tsx",
   "src/components/header/CategoryBar.tsx",
   "src/components/header/MobileDrawer.tsx",
