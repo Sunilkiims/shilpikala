@@ -29,5 +29,5 @@ export async function PicksSection() {
       products: inCat.slice(0, PER_TAB).map(toCard),
     });
   }
-  return <PicksShowcase title="Handpicked for you" tabs={tabs} />;
+  return <PicksShowcase title="Trending Now" tabs={tabs} />;
 }
