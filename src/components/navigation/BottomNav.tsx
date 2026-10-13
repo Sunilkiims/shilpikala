@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCart } from "@/components/cart/CartProvider";
 import { AccountIcon, CartIcon, HomeIcon, PackageIcon, ShopIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils/cn";
 
@@ -21,6 +22,7 @@ const TABS: Tab[] = [
 /** Fixed bottom bar, phones only. The root layout reserves matching space so it never covers content. */
 export function BottomNav() {
   const pathname = usePathname();
+  const { totalQuantity } = useCart();
   if (pathname.startsWith("/admin")) return null;
   return (
     <nav
@@ -40,8 +42,21 @@ export function BottomNav() {
                   active ? "text-terracotta" : "text-earth-brown/75 hover:text-terracotta"
                 )}
               >
-                <Icon className="h-6 w-6" />
+                <span className="relative">
+                  <Icon className="h-6 w-6" />
+                  {label === "Cart" && totalQuantity > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-terracotta px-1 text-[10px] leading-none text-ivory"
+                    >
+                      {totalQuantity > 99 ? "99+" : totalQuantity}
+                    </span>
+                  )}
+                </span>
                 {label}
+                {label === "Cart" && totalQuantity > 0 && (
+                  <span className="sr-only">, {totalQuantity} {totalQuantity === 1 ? "item" : "items"}</span>
+                )}
               </Link>
             </li>
           );
