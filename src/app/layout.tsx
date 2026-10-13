@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/header/Header";
 import { Footer } from "@/components/footer/Footer";
+import { FooterGate } from "@/components/footer/FooterGate";
+import { BottomNav } from "@/components/navigation/BottomNav";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { WishlistProvider } from "@/components/wishlist/WishlistProvider";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -39,14 +41,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="flex min-h-full flex-col bg-ivory text-charcoal">
+      <body className="flex min-h-full flex-col bg-ivory pb-[calc(3.75rem+env(safe-area-inset-bottom))] text-charcoal md:pb-0">
         <JsonLd data={buildOrganizationSchema()} />
         <JsonLd data={buildWebSiteSchema()} />
         <CartProvider>
           <WishlistProvider>
             <Header />
             <main className="flex-1">{children}</main>
-            <Footer />
+            <FooterGate><Footer /></FooterGate>
+            <BottomNav />
           </WishlistProvider>
         </CartProvider>
       </body>

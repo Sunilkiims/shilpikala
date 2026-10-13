@@ -1,0 +1,52 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { AccountIcon, CartIcon, HomeIcon, PackageIcon, ShopIcon } from "@/components/ui/icons";
+import { cn } from "@/lib/utils/cn";
+
+type Tab = { label: string; href: string; Icon: typeof HomeIcon; isActive: (p: string) => boolean };
+
+const TABS: Tab[] = [
+  { label: "Home", href: "/", Icon: HomeIcon, isActive: (p) => p === "/" },
+  { label: "Shop", href: "/shop", Icon: ShopIcon, isActive: (p) => p.startsWith("/shop") || p.startsWith("/product") || p.startsWith("/categories") },
+  { label: "Orders", href: "/account/orders", Icon: PackageIcon, isActive: (p) => p.startsWith("/account/orders") || p.startsWith("/account/returns") },
+  { label: "Cart", href: "/cart", Icon: CartIcon, isActive: (p) => p.startsWith("/cart") || p.startsWith("/checkout") },
+  {
+    label: "Account", href: "/account", Icon: AccountIcon,
+    isActive: (p) => p.startsWith("/account") && !p.startsWith("/account/orders") && !p.startsWith("/account/returns"),
+  },
+];
+
+/** Fixed bottom bar, phones only. The root layout reserves matching space so it never covers content. */
+export function BottomNav() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/admin")) return null;
+  return (
+    <nav
+      aria-label="Main"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-earth-brown/15 bg-ivory/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+    >
+      <ul className="mx-auto flex max-w-lg">
+        {TABS.map(({ label, href, Icon, isActive }) => {
+          const active = isActive(pathname);
+          return (
+            <li key={label} className="flex-1">
+              <Link
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] tracking-wide transition-colors",
+                  active ? "text-terracotta" : "text-earth-brown/75 hover:text-terracotta"
+                )}
+              >
+                <Icon className="h-6 w-6" />
+                {label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}

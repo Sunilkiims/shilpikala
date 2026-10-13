@@ -157,14 +157,38 @@ export async function setPassword(customerId: number, password: string): Promise
   });
 }
 
+/** Name and phone only: delivery addresses live in customer_addresses (see lib/account/addressStore). */
 export async function updateProfile(
   customerId: number,
-  patch: { name: string; phone?: string; address?: Address | null }
+  patch: { name: string; phone?: string }
 ): Promise<CustomerAccount | undefined> {
   const db = await getDb();
   const res = await db.query<CustomerRow>(
-    `UPDATE customers SET name = $2, phone = $3, address = $4::jsonb WHERE id = $1 RETURNING *`,
-    [customerId, patch.name, patch.phone || null, patch.address ? JSON.stringify(patch.address) : null]
+    `UPDATE customers SET name = $2, phone = $3 WHERE id = $1 RETURNING *`,
+    [customerId, patch.name, patch.phone || null]
   );
   return res.rows[0] ? toAccount(res.rows[0]) : undefined;
+}
+
+/** Signs out every device except the one holding `keepToken`. */
+export async function deleteOtherSessions(customerId: number, keepToken: string | undefined): Promise<void> {
+  const db = await getDb();
+  await db.query("DELETE FROM sessions WHERE customer_id = $1 AND token_hash <> $2", [
+    customerId,
+    keepToken ? sha256(keepToken) : "",
+  ]);
+}
+
+/** Verifies the current password, then sets the new one and signs out all other devices. */
+export async function changePassword(
+  customerId: number,
+  current: string,
+  next: string
+): Promise<"ok" | "wrong_password"> {
+  const db = await getDb();
+  const res = await db.query<CustomerRow>("SELECT * FROM customers WHERE id = $1", [customerId]);
+  const row = res.rows[0];
+  if (!row || !(await verifyPassword(current, row.password_hash))) return "wrong_password";
+  await setPassword(customerId, next);
+  return "ok";
 }

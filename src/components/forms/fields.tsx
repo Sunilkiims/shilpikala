@@ -58,6 +58,10 @@ const ERROR_TEXT: Record<string, string> = {
   invalid_or_expired_token: "This link is invalid or has expired. Please request a new one.",
   message_too_short: "Please write a little more (at least 10 characters).",
   invalid_address: "Please complete all required address fields.",
+  address_limit: "You can save up to 3 addresses. Delete one to add another.",
+  wrong_password: "Your current password isn't right.",
+  unauthorized: "Please sign in again to continue.",
+  not_found: "That item no longer exists. Please refresh the page.",
 };
 
 export function errorText(code: string | undefined): string {

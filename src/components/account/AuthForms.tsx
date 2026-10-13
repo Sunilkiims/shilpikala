@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, FormMessage, errorText, fieldClass } from "@/components/forms/fields";
+import { announceAuthChange } from "@/components/account/authEvents";
 
 type PostResult = { ok: boolean; status?: number; error?: string; data?: Record<string, unknown> };
 
@@ -68,6 +69,7 @@ export function SignInRegister({ initialMode = "login" }: { initialMode?: "login
       setError(errorText(result.error));
       return;
     }
+    announceAuthChange("login");
     router.refresh();
   }
 
@@ -81,7 +83,10 @@ export function SignInRegister({ initialMode = "login" }: { initialMode?: "login
           setMode("register");
           setError(undefined);
         }}
-        onDone={() => router.refresh()}
+        onDone={() => {
+          announceAuthChange("login");
+          router.refresh();
+        }}
       />
     );
   }
@@ -406,6 +411,7 @@ export function LogoutButton() {
       onClick={async () => {
         setBusy(true);
         await post("/api/auth/logout", {});
+        announceAuthChange("logout");
         router.refresh();
       }}
     >

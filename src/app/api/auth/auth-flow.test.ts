@@ -189,15 +189,16 @@ describe("profile", () => {
     expect(res.status).toBe(401);
   });
 
-  it("saves a sanitised address and rejects an incomplete one", async () => {
+  it("updates name and phone, and ignores any address sent (addresses have their own API)", async () => {
     const cookie = cookieFrom(await reg());
-    const ok = await profile(jsonRequest("http://x", { method: "PATCH", headers: { cookie }, body: { name: "Jane D", address: { ...address, isAdmin: true } } }));
+    const ok = await profile(jsonRequest("http://x", { method: "PATCH", headers: { cookie }, body: { name: "Jane D", phone: "99999", address } }));
     expect(ok.status).toBe(200);
     const { customer } = await ok.json();
     expect(customer.name).toBe("Jane D");
-    expect(customer.address).not.toHaveProperty("isAdmin");
+    expect(customer.phone).toBe("99999");
+    expect(customer.address).toBeUndefined();
 
-    const bad = await profile(jsonRequest("http://x", { method: "PATCH", headers: { cookie }, body: { name: "Jane", address: { fullName: "x" } } }));
+    const bad = await profile(jsonRequest("http://x", { method: "PATCH", headers: { cookie }, body: { name: "  " } }));
     expect(bad.status).toBe(400);
   });
 });

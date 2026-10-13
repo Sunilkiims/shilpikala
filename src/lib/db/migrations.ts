@@ -334,4 +334,33 @@ CREATE TABLE replacement_shipments (
 );
 `,
   },
+  {
+    id: "006_wishlist_addresses",
+    sql: `
+-- Server-side wishlist: the primary key is what prevents duplicate entries.
+CREATE TABLE customer_wishlist_items (
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (customer_id, product_id)
+);
+
+-- Saved delivery addresses (the application caps this at three per customer).
+CREATE TABLE customer_addresses (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  label TEXT,
+  address JSONB NOT NULL,
+  is_default BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX customer_addresses_customer_idx ON customer_addresses(customer_id, id);
+-- At most one default address per customer.
+CREATE UNIQUE INDEX customer_addresses_one_default_idx ON customer_addresses(customer_id) WHERE is_default;
+
+-- Carry over the single address customers had before.
+INSERT INTO customer_addresses (customer_id, address, is_default)
+SELECT id, address, true FROM customers WHERE address IS NOT NULL;
+`,
+  },
 ];
