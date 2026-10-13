@@ -1,3 +1,6 @@
+import { CategoryStrip } from "@/components/sections/CategoryStrip";
+import { OfferStrip } from "@/components/sections/OfferStrip";
+import { PicksSection } from "@/components/sections/PicksSection";
 import { FeaturedProducts } from "@/components/sections/FeaturedProducts";
 import { CategoryPreview } from "@/components/sections/CategoryPreview";
 import { BrandStatement } from "@/components/sections/BrandStatement";
@@ -12,8 +15,11 @@ export default function Home() {
   return (
     <>
       <h1 className="sr-only">ShilpiKala — handmade Mandala Art and Lipan Art</h1>
+      <CategoryStrip />
       <HeroAds />
+      <OfferStrip />
       <HomeCarousels part="first" />
+      <PicksSection />
       <HomeCategoryAds />
       <HomeCarousels part="rest" />
       <FeaturedProducts />

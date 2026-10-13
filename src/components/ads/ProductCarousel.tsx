@@ -1,13 +1,11 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdPicture } from "@/components/ads/AdPicture";
 import { AdLink } from "@/components/ads/AdLink";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { Container } from "@/components/ui/Container";
-import { formatMoney } from "@/lib/utils/currency";
+import { CompactCard } from "@/components/product/CompactCard";
 import type { CardProduct, RenderMedia } from "@/lib/ads/public";
 
 type Props = {
@@ -88,40 +86,11 @@ export function ProductCarousel({ heading, subtitle, badge, products, showDiscou
           aria-label={heading ? `${heading}, scroll sideways for more` : "Products"}
           className="relative flex snap-x gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] sm:gap-4 [&::-webkit-scrollbar]:hidden"
         >
-          {products.map((p) => {
-            const card = (
-              <>
-                <span className="relative block aspect-square overflow-hidden rounded-sm bg-earth-brown/5">
-                  {p.image ? (
-                    <Image src={p.image.src} alt={p.image.alt} fill sizes="(min-width: 1024px) 220px, (min-width: 640px) 192px, 160px" className="object-cover" />
-                  ) : (
-                    <span aria-hidden="true" className="absolute inset-0 bg-terracotta/[0.06]" />
-                  )}
-                  {showDiscount && p.discountPercent ? (
-                    <span className="absolute left-2 top-2 rounded-sm bg-olive px-2 py-0.5 text-xs font-semibold tracking-wide text-ivory">{p.discountPercent}% OFF</span>
-                  ) : null}
-                </span>
-                <span className="mt-2 block text-sm leading-snug text-charcoal [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{p.name}</span>
-                <span className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm">
-                  <span className="sr-only">{p.originalPrice ? "Offer price " : "Price "}</span>
-                  <span className={p.originalPrice ? "font-semibold text-terracotta" : "text-earth-brown/85"}>{formatMoney(p.price)}</span>
-                  {p.originalPrice ? (
-                    <>
-                      <span className="sr-only">, original price </span>
-                      <span className="text-xs text-earth-brown/65 line-through">{formatMoney(p.originalPrice)}</span>
-                    </>
-                  ) : null}
-                </span>
-                {p.badge && <span className="mt-1 inline-block rounded-full bg-gold/30 px-2 py-0.5 text-[11px] text-earth-brown">{p.badge}</span>}
-                {!p.inStock && <span className="mt-0.5 block text-xs text-earth-brown/70">Out of stock</span>}
-              </>
-            );
-            return (
-              <li key={p.id} className="w-40 shrink-0 snap-start sm:w-48 lg:w-56">
-                {preview ? <div>{card}</div> : <Link href={`/product/${p.slug}`} className="block">{card}</Link>}
-              </li>
-            );
-          })}
+          {products.map((p) => (
+            <li key={p.id} className="w-40 shrink-0 snap-start sm:w-48 lg:w-56">
+              <CompactCard product={p} showDiscount={showDiscount} preview={preview} />
+            </li>
+          ))}
         </ul>
         {!edge.start && (
           <button type="button" onClick={() => scrollBy(-1)} aria-label="Previous products"

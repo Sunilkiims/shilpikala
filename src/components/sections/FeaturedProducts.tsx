@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { ProductGrid } from "@/components/product/ProductGrid";
+import { ProductCard } from "@/components/product/ProductCard";
 import { getAllProducts } from "@/lib/catalog";
 
 const FEATURED_COUNT = 8;
@@ -26,9 +26,14 @@ export async function FeaturedProducts() {
             View all
           </Link>
         </div>
-        <div className="mt-10">
-          <ProductGrid products={featured} />
-        </div>
+        {/* Swipeable row on phones, regular grid from tablets up. `relative` keeps hidden labels inside the scroller. */}
+        <ul className="relative -mx-6 mt-10 flex snap-x gap-3 overflow-x-auto px-6 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
+          {featured.map((product) => (
+            <li key={product.id} className="w-40 shrink-0 snap-start sm:w-auto">
+              <ProductCard product={product} />
+            </li>
+          ))}
+        </ul>
       </Container>
     </section>
   );
