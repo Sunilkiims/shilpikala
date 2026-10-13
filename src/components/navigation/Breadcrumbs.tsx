@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export type Crumb = {
   label: string;
   href?: string;
@@ -9,28 +7,12 @@ type BreadcrumbsProps = {
   items: Crumb[];
 };
 
-export function Breadcrumbs({ items }: BreadcrumbsProps) {
-  return (
-    <nav aria-label="Breadcrumb">
-      <ol className="flex flex-wrap items-center gap-2 text-xs text-earth-brown/70">
-        {items.map((item, index) => {
-          const isLast = index === items.length - 1;
-          return (
-            <li key={`${item.label}-${index}`} className="flex items-center gap-2">
-              {item.href && !isLast ? (
-                <Link href={item.href} className="hover:text-terracotta">
-                  {item.label}
-                </Link>
-              ) : (
-                <span aria-current={isLast ? "page" : undefined}>
-                  {item.label}
-                </span>
-              )}
-              {!isLast && <span aria-hidden="true">/</span>}
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
+/**
+ * The visible "Home / Shop / ..." trail is switched off site-wide. Pages still
+ * pass their trail in because the BreadcrumbList structured data (SEO) is
+ * generated separately from the same items; only the on-page markup is gone.
+ */
+export function Breadcrumbs(props: BreadcrumbsProps) {
+  void props;
+  return null;
 }
