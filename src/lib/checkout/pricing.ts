@@ -1,4 +1,5 @@
 import { getProductById } from "@/lib/catalog";
+import { paiseToRupees, parsePaise } from "@/lib/offers/money";
 import { calculateShipping } from "@/lib/shipping/calculate";
 
 export type RequestedItem = {
@@ -11,7 +12,17 @@ export type PricedLineItem = {
   name: string;
   slug: string;
   quantity: number;
+  /** Unit price actually charged (after any offer). */
   price: string;
+  /**
+   * Offer snapshot, present only when a discount offer was applied. Saved with the order so
+   * the charged price and the discount stay on record even if the offer or price changes later.
+   */
+  originalPrice?: string;
+  /** Discount per unit, in rupees as a decimal string. */
+  discountPerUnit?: string;
+  offerId?: number;
+  offerName?: string;
 };
 
 export type OrderTotals = {
@@ -45,7 +56,7 @@ export async function computeOrderTotals(
   items: RequestedItem[]
 ): Promise<OrderTotals> {
   const lineItems: PricedLineItem[] = [];
-  let itemsSubtotalInRupees = 0;
+  let subtotalPaise = 0;
 
   for (const requested of items) {
     const quantity = Number(requested.quantity);
@@ -67,8 +78,11 @@ export async function computeOrderTotals(
       throw new PricingError("insufficient_stock", requested.productId);
     }
 
+    // Priced here, on the server, from the live offers - never from what the browser sent.
     const unitPrice =
-      product.onSale && product.salePrice ? product.salePrice : product.price;
+      product.pricing?.price ??
+      (product.onSale && product.salePrice ? product.salePrice : product.price);
+    const unitPaise = parsePaise(unitPrice) ?? Math.round(Number(unitPrice) * 100);
 
     lineItems.push({
       productId: product.id,
@@ -76,16 +90,25 @@ export async function computeOrderTotals(
       slug: product.slug,
       quantity,
       price: unitPrice,
+      ...(product.pricing
+        ? {
+            originalPrice: product.pricing.basePrice,
+            discountPerUnit: product.pricing.savings,
+            offerId: product.pricing.offerId,
+            offerName: product.pricing.offerName,
+          }
+        : {}),
     });
-    itemsSubtotalInRupees += Number(unitPrice) * quantity;
+    subtotalPaise += unitPaise * quantity;
   }
 
+  const itemsSubtotalInRupees = paiseToRupees(subtotalPaise);
   const shippingInRupees = calculateShipping(itemsSubtotalInRupees);
 
   return {
     itemsSubtotalInRupees,
     shippingInRupees,
-    amountInRupees: itemsSubtotalInRupees + shippingInRupees,
+    amountInRupees: paiseToRupees(subtotalPaise + Math.round(shippingInRupees * 100)),
     lineItems,
   };
 }

@@ -8,11 +8,11 @@ import { WishlistIcon } from "@/components/ui/icons";
 import { ProductImagePlaceholder } from "@/components/product/ProductImagePlaceholder";
 import { useCart } from "@/components/cart/CartProvider";
 import { useWishlist } from "@/components/wishlist/WishlistProvider";
-import { formatPrice } from "@/lib/utils/currency";
+import { PriceTag } from "@/components/product/PriceTag";
 
 export type WishlistItemData = {
   id: number; name: string; slug: string;
-  price: string; regularPrice: string; onSale: boolean;
+  price: string; originalPrice?: string; percentOff?: number; badge?: string;
   inStock: boolean; lowStock?: number;
   image?: { src: string; alt: string };
 };
@@ -31,7 +31,12 @@ export function AccountWishlist({ initial }: { initial: WishlistItemData[] }) {
   };
 
   function moveToCart(item: WishlistItemData) {
-    addItem({ productId: item.id, name: item.name, slug: item.slug, quantity: 1, price: item.price });
+    addItem({
+      productId: item.id, name: item.name, slug: item.slug, quantity: 1, price: item.price,
+      ...(item.originalPrice ? { originalPrice: item.originalPrice } : {}),
+      ...(item.percentOff ? { percentOff: item.percentOff } : {}),
+      ...(item.badge ? { offerLabel: item.badge } : {}),
+    });
     remove(item.id); // also removes it from the account on the server
     drop(item.id);
     setNotice(`${item.name} moved to your cart.`);
@@ -69,10 +74,7 @@ export function AccountWishlist({ initial }: { initial: WishlistItemData[] }) {
             </Link>
             <div className="flex min-w-0 flex-1 flex-col">
               <Link href={`/product/${item.slug}`} className="text-base text-charcoal hover:text-terracotta">{item.name}</Link>
-              <p className="mt-1 flex items-center gap-2 text-sm">
-                <span className={item.onSale ? "text-terracotta" : "text-earth-brown/80"}>{formatPrice(item.price)}</span>
-                {item.onSale && <span className="text-earth-brown/70 line-through">{formatPrice(item.regularPrice)}</span>}
-              </p>
+              <PriceTag className="mt-1" price={item.price} original={item.originalPrice} percentOff={item.percentOff} badge={item.badge} />
               <p className={`mt-1 text-xs ${item.inStock ? "text-olive" : "text-terracotta-deep"}`}>
                 {!item.inStock ? "Out of stock" : item.lowStock ? `Only ${item.lowStock} left` : "In stock"}
               </p>

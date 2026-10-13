@@ -12,7 +12,7 @@ export type PreviewData = {
   desktop?: RenderMedia; mobile?: RenderMedia;
   destinationText: string;
   showDiscount: boolean;
-  source: { sourceType: SourceType; sourceRef?: number; productIds: number[]; maxItems: number };
+  source: { sourceType: SourceType; sourceRef?: number; productIds: number[]; maxItems: number; discountedOnly?: boolean };
 };
 
 const ratio = (m?: RenderMedia) => {

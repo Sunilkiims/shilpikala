@@ -68,7 +68,7 @@ type AdRow = {
   badge: string | null; cta_text: string | null; desktop_media_id: number | null; mobile_media_id: number | null;
   thumb_media_id: number | null; dest_type: DestType; dest_ref: string | null; dest_product_ids: number[];
   category_id: number | null; source_type: SourceType | null; source_ref: number | null; product_ids: number[];
-  max_items: number; show_discount: boolean; starts_at: Date | string | null; ends_at: Date | string | null;
+  max_items: number; show_discount: boolean; discounted_only: boolean; starts_at: Date | string | null; ends_at: Date | string | null;
   priority: number; position: number; enabled: boolean; published: boolean; created_at: Date | string; updated_at: Date | string;
 };
 
@@ -84,14 +84,14 @@ const toAd = (r: AdRow): AdRecord => ({
   destType: r.dest_type, destRef: opt(r.dest_ref), destProductIds: ids(r.dest_product_ids),
   categoryId: r.category_id == null ? undefined : num(r.category_id),
   sourceType: opt(r.source_type), sourceRef: r.source_ref == null ? undefined : num(r.source_ref),
-  productIds: ids(r.product_ids), maxItems: num(r.max_items), showDiscount: r.show_discount,
+  productIds: ids(r.product_ids), maxItems: num(r.max_items), showDiscount: r.show_discount, discountedOnly: Boolean(r.discounted_only),
   startsAt: r.starts_at ? iso(r.starts_at) : undefined, endsAt: r.ends_at ? iso(r.ends_at) : undefined,
   priority: num(r.priority), position: num(r.position), enabled: r.enabled, published: r.published,
   createdAt: iso(r.created_at), updatedAt: iso(r.updated_at),
 });
 
 const COLUMNS = `name, type, placement, heading, subtitle, badge, cta_text, desktop_media_id, mobile_media_id, thumb_media_id,
-  dest_type, dest_ref, dest_product_ids, category_id, source_type, source_ref, product_ids, max_items, show_discount,
+  dest_type, dest_ref, dest_product_ids, category_id, source_type, source_ref, product_ids, max_items, show_discount, discounted_only,
   starts_at, ends_at, priority, enabled, published`;
 
 // Parameter positions 13 and 17 (dest_product_ids, product_ids) are JSONB; see the casts in createAd/updateAd.
@@ -100,7 +100,7 @@ const values = (a: AdInput) => [
   a.name, a.type, a.placement, a.heading ?? null, a.subtitle ?? null, a.badge ?? null, a.ctaText ?? null,
   a.desktopMediaId ?? null, a.mobileMediaId ?? null, a.thumbMediaId ?? null,
   a.destType, a.destRef ?? null, JSON.stringify(a.destProductIds), a.categoryId ?? null,
-  a.sourceType ?? null, a.sourceRef ?? null, JSON.stringify(a.productIds), a.maxItems, a.showDiscount,
+  a.sourceType ?? null, a.sourceRef ?? null, JSON.stringify(a.productIds), a.maxItems, a.showDiscount, a.discountedOnly,
   a.startsAt ?? null, a.endsAt ?? null, a.priority, a.enabled, a.published,
 ];
 

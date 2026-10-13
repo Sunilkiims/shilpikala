@@ -11,7 +11,8 @@ import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { ReviewsSection } from "@/components/product/ReviewsSection";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/seo/structuredData";
-import { formatPrice } from "@/lib/utils/currency";
+import { PriceTag } from "@/components/product/PriceTag";
+import { priceDisplay } from "@/lib/offers/display";
 import { getReviewsByProductId } from "@/lib/reviews/store";
 import { returnWindowDays } from "@/lib/returns/config";
 import { getProductPolicy } from "@/lib/returns/store";
@@ -21,9 +22,9 @@ import {
   getProductsByCategorySlug,
 } from "@/lib/catalog";
 
-// Re-read on each request after the first 5 minutes, so products added
-// or edited in the admin area show up without a redeploy.
-export const revalidate = 300;
+// Re-read at most a minute after a request, so products and scheduled offers
+// (which start and end on a clock) show up without a redeploy. Admin edits refresh sooner.
+export const revalidate = 60;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -56,6 +57,7 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   const primaryCategory = product.categories[0];
+  const display = priceDisplay(product);
   const [relatedCandidates, approvedReviews, returnPolicy] = await Promise.all([
     primaryCategory ? getProductsByCategorySlug(primaryCategory.slug) : [],
     getReviewsByProductId(product.id, "approved"),
@@ -100,22 +102,14 @@ export default async function ProductPage({ params }: PageProps) {
             {product.name}
           </h1>
 
-          <div className="mt-4 flex items-center gap-3">
-            {product.onSale && product.salePrice ? (
-              <>
-                <span className="text-xl text-terracotta">
-                  {formatPrice(product.salePrice)}
-                </span>
-                <span className="text-base text-earth-brown/70 line-through">
-                  {formatPrice(product.regularPrice)}
-                </span>
-              </>
-            ) : (
-              <span className="text-xl text-earth-brown/90">
-                {formatPrice(product.price)}
-              </span>
-            )}
-          </div>
+          <PriceTag
+            className="mt-4"
+            size="detail"
+            price={display.price}
+            original={display.original}
+            percentOff={display.percentOff}
+            badge={display.badge}
+          />
 
           <p className="mt-6 max-w-md text-base leading-relaxed text-earth-brown/80">
             {product.description}

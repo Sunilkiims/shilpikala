@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Product } from "@/types/catalog";
 import { ProductPhoto } from "@/components/product/ProductPhoto";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
-import { formatPrice } from "@/lib/utils/currency";
+import { DiscountFlag, PriceTag } from "@/components/product/PriceTag";
+import { priceDisplay } from "@/lib/offers/display";
 
 type ProductCardProps = {
   product: Product;
@@ -10,11 +11,15 @@ type ProductCardProps = {
 
 export function ProductCard({ product }: ProductCardProps) {
   const primaryCategory = product.categories[0];
+  const display = priceDisplay(product);
 
   return (
     <div className="group relative">
       <Link href={`/product/${product.slug}`} className="block">
-        <ProductPhoto product={product} className="rounded-sm" />
+        <div className="relative">
+          <ProductPhoto product={product} className="rounded-sm" />
+          <DiscountFlag percentOff={display.original ? display.percentOff : undefined} />
+        </div>
 
         <div className="mt-4">
           {primaryCategory && (
@@ -27,22 +32,14 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
 
-          <div className="mt-2 flex items-center gap-2">
-            {product.onSale && product.salePrice ? (
-              <>
-                <span className="text-sm text-terracotta">
-                  {formatPrice(product.salePrice)}
-                </span>
-                <span className="text-sm text-earth-brown/70 line-through">
-                  {formatPrice(product.regularPrice)}
-                </span>
-              </>
-            ) : (
-              <span className="text-sm text-earth-brown/80">
-                {formatPrice(product.price)}
-              </span>
-            )}
-          </div>
+          <PriceTag
+            className="mt-2"
+            price={display.price}
+            original={display.original}
+            percentOff={display.percentOff}
+            badge={display.badge}
+            showPill={false}
+          />
 
           {!product.inStock && (
             <p className="mt-2 text-xs text-earth-brown/70">Out of stock</p>

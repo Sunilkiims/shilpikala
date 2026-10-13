@@ -57,6 +57,7 @@ export function AdForm({ initial, media, products, categories, collections }: Pr
   const [productIds, setProductIds] = useState<number[]>(initial?.productIds ?? []);
   const [maxItems, setMaxItems] = useState(String(initial?.maxItems ?? 12));
   const [showDiscount, setShowDiscount] = useState(initial?.showDiscount ?? true);
+  const [discountedOnly, setDiscountedOnly] = useState(initial?.discountedOnly ?? false);
   const [startsAt, setStartsAt] = useState(toLocal(initial?.startsAt));
   const [endsAt, setEndsAt] = useState(toLocal(initial?.endsAt));
   const [priority, setPriority] = useState(String(initial?.priority ?? 0));
@@ -88,7 +89,7 @@ export function AdForm({ initial, media, products, categories, collections }: Pr
   const preview: PreviewData = {
     isCarousel, heading: heading || undefined, subtitle: subtitle || undefined, badge: badge || undefined, ctaText: ctaText || undefined,
     desktop: desktop ?? mobile, mobile: mobile ?? desktop, destinationText, showDiscount,
-    source: { sourceType, sourceRef: sourceRef ? Number(sourceRef) : undefined, productIds, maxItems: Number(maxItems) || 12 },
+    source: { sourceType, sourceRef: sourceRef ? Number(sourceRef) : undefined, productIds, maxItems: Number(maxItems) || 12, discountedOnly },
   };
 
   async function save(publish: boolean) {
@@ -104,7 +105,7 @@ export function AdForm({ initial, media, products, categories, collections }: Pr
       sourceType: isCarousel ? sourceType : undefined,
       sourceRef: isCarousel && (sourceType === "category" || sourceType === "collection") ? Number(sourceRef) : undefined,
       productIds: isCarousel && sourceType === "manual" ? productIds : [],
-      maxItems: Number(maxItems), showDiscount,
+      maxItems: Number(maxItems), showDiscount, discountedOnly: isCarousel && discountedOnly,
       startsAt: toIso(startsAt), endsAt: toIso(endsAt),
       priority: Number(priority), enabled, published: publish,
     };
@@ -191,7 +192,11 @@ export function AdForm({ initial, media, products, categories, collections }: Pr
               <Field label="Maximum products (1–24)"><input type="number" min={1} max={24} value={maxItems} onChange={(e) => setMaxItems(e.target.value)} className={fieldClass} /></Field>
               <label className="flex min-h-11 items-center gap-3 self-end text-sm text-earth-brown/85">
                 <input type="checkbox" checked={showDiscount} onChange={(e) => setShowDiscount(e.target.checked)} className="h-4 w-4 accent-terracotta" />
-                Show discount badges (only where a real sale price exists)
+                Show discount badges (only where a real discount exists)
+              </label>
+              <label className="flex min-h-11 items-center gap-3 text-sm text-earth-brown/85 sm:col-span-2">
+                <input type="checkbox" checked={discountedOnly} onChange={(e) => setDiscountedOnly(e.target.checked)} className="h-4 w-4 accent-terracotta" />
+                Show only discounted products (products with an active offer or sale price)
               </label>
             </div>
           </fieldset>

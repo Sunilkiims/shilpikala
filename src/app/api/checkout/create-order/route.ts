@@ -5,12 +5,16 @@ import { computeOrderTotals, PricingError } from "@/lib/checkout/pricing";
 import { sanitizeAddress } from "@/lib/checkout/address";
 import { getCustomerFromRequest } from "@/lib/auth/session";
 import { savePendingOrder } from "@/lib/orders/pendingStore";
+import { getCartPrices } from "@/lib/offers/cartPrices";
+import { parsePaise } from "@/lib/offers/money";
 import { isValidEmail } from "@/lib/utils/email";
 
 type CreateOrderRequestBody = {
   items?: unknown;
   address?: unknown;
   email?: unknown;
+  /** The items subtotal the customer saw (rupees). If it no longer matches, we ask them to confirm. */
+  expectedSubtotal?: unknown;
 };
 
 function isItemList(value: unknown): value is { productId: number; quantity: number }[] {
@@ -64,6 +68,23 @@ export async function POST(request: Request) {
       );
     }
     throw error;
+  }
+
+  // The customer saw one total; the server's current prices say another (an offer started or
+  // ended, or a price was edited, since the page loaded). Never charge a different amount silently.
+  const expected =
+    typeof body.expectedSubtotal === "number" || typeof body.expectedSubtotal === "string"
+      ? parsePaise(body.expectedSubtotal)
+      : null;
+  if (expected !== null && expected !== Math.round(totals.itemsSubtotalInRupees * 100)) {
+    return NextResponse.json(
+      {
+        error: "prices_changed",
+        prices: await getCartPrices(totals.lineItems.map((l) => l.productId)),
+        itemsSubtotal: totals.itemsSubtotalInRupees,
+      },
+      { status: 409 }
+    );
   }
 
   const amountInPaise = Math.round(totals.amountInRupees * 100);

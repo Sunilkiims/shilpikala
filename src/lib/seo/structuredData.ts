@@ -52,7 +52,7 @@ export function buildProductSchema(
   approvedReviews: StoredReview[]
 ) {
   const unitPrice =
-    product.onSale && product.salePrice ? product.salePrice : product.price;
+    product.pricing?.price ?? (product.onSale && product.salePrice ? product.salePrice : product.price);
 
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",

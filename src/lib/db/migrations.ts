@@ -430,4 +430,42 @@ CREATE TABLE ad_settings (
 );
 `,
   },
+  {
+    id: "008_offers",
+    sql: `
+-- Discounts & offers. discount_value is stored in minor units so no floating point is ever
+-- involved: for 'percent' it is hundredths of a percent (2000 = 20%), for 'fixed' it is paise.
+CREATE TABLE offers (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('product','category')),
+  category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
+  discount_type TEXT NOT NULL CHECK (discount_type IN ('percent','fixed')),
+  discount_value INTEGER NOT NULL CHECK (discount_value > 0),
+  badge TEXT,
+  -- Category offers only: also apply on top of a product-specific offer. Off by default.
+  stackable BOOLEAN NOT NULL DEFAULT false,
+  starts_at TIMESTAMPTZ,
+  ends_at TIMESTAMPTZ,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  published BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK ((scope = 'category') = (category_id IS NOT NULL)),
+  -- 100% (a free product) is never allowed.
+  CHECK (discount_type <> 'percent' OR discount_value < 10000)
+);
+CREATE INDEX offers_live_idx ON offers(published, enabled, starts_at, ends_at);
+
+CREATE TABLE offer_products (
+  offer_id INTEGER NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  PRIMARY KEY (offer_id, product_id)
+);
+CREATE INDEX offer_products_product_idx ON offer_products(product_id);
+
+-- Product carousels can be limited to products that currently have a discount.
+ALTER TABLE ads ADD COLUMN discounted_only BOOLEAN NOT NULL DEFAULT false;
+`,
+  },
 ];

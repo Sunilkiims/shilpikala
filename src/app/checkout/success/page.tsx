@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { offerNote } from "@/lib/offers/orderNote";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
@@ -41,6 +42,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
               >
                 <span className="text-charcoal">
                   {item.name} × {item.quantity}
+                  {offerNote(item) && <span className="block text-xs text-olive">{offerNote(item)}</span>}
                 </span>
                 <span className="text-earth-brown/80">
                   {formatPrice(String(Number(item.price) * item.quantity))}

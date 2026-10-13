@@ -4,6 +4,8 @@
  * platform — backed by the file-based store in src/lib/store/.
  */
 
+import type { ProductPricing } from "@/lib/offers/types";
+
 export interface ProductImage {
   id: number;
   src: string;
@@ -59,6 +61,11 @@ export interface Product {
   variations?: ProductVariation[];
   reviews?: Review[];
   averageRating?: number;
+  /**
+   * Set (by src/lib/catalog.ts) only when a discount offer applies right now. Never
+   * stored with the product; always recomputed from the live offers.
+   */
+  pricing?: ProductPricing;
 }
 
 export interface CartItem {
@@ -68,7 +75,14 @@ export interface CartItem {
   slug: string;
   image?: ProductImage;
   quantity: number;
+  /** Unit price the customer pays. Re-checked against the server in the cart and at checkout. */
   price: string;
+  /** Price before an offer, for the strikethrough. Display only. */
+  originalPrice?: string;
+  percentOff?: number;
+  offerLabel?: string;
+  /** The product has been removed from the shop since it was added. */
+  unavailable?: boolean;
 }
 
 export interface Address {

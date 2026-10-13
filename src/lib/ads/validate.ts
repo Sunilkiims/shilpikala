@@ -55,6 +55,7 @@ export async function parseAdInput(body: unknown): Promise<ParseResult> {
   const published = b.published === true;
   const enabled = b.enabled !== false;
   const showDiscount = b.showDiscount !== false;
+  const discountedOnly = type === "carousel" && b.discountedOnly === true;
 
   const priority = b.priority === undefined ? 0 : int(b.priority);
   if (priority === undefined || priority < -1000 || priority > 1000) return fail("invalid_priority", "priority");
@@ -147,7 +148,7 @@ export async function parseAdInput(body: unknown): Promise<ParseResult> {
       name, type, placement, heading, subtitle, badge, ctaText,
       desktopMediaId, mobileMediaId, thumbMediaId,
       destType, destRef, destProductIds, categoryId,
-      sourceType, sourceRef, productIds: productList, maxItems, showDiscount,
+      sourceType, sourceRef, productIds: productList, maxItems, showDiscount, discountedOnly,
       startsAt: startsAt ?? undefined, endsAt: endsAt ?? undefined, priority, enabled, published,
     },
   };

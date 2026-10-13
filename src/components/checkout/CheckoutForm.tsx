@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
 import { Button } from "@/components/ui/Button";
-import { formatPrice } from "@/lib/utils/currency";
+import { PriceTag } from "@/components/product/PriceTag";
+import { formatMoney } from "@/lib/utils/currency";
+import { parsePaise, paiseToString } from "@/lib/offers/money";
 import { calculateShipping } from "@/lib/shipping/calculate";
 import { shippingConfig } from "@/lib/shipping/config";
 import { siteConfig } from "@/lib/config/site";
@@ -47,7 +49,7 @@ type CheckoutFormProps = {
 
 export function CheckoutForm({ prefill, returnWindowDays = siteConfig.business.returnWindowDays }: CheckoutFormProps = {}) {
   const router = useRouter();
-  const { items, subtotal, clear } = useCart();
+  const { items, subtotal, savings, clear, applyPrices } = useCart();
   const shipping = calculateShipping(subtotal);
   const total = subtotal + shipping;
   const [email, setEmail] = useState(prefill?.email ?? "");
@@ -75,8 +77,23 @@ export function CheckoutForm({ prefill, returnWindowDays = siteConfig.business.r
           })),
           address,
           email,
+          // What this page is showing. If the server's prices differ (an offer started or ended),
+          // it refuses to charge and sends the new prices back instead.
+          expectedSubtotal: subtotal,
         }),
       });
+
+      if (response.status === 409) {
+        const body = await response.json().catch(() => ({}));
+        if (body.error === "prices_changed" && Array.isArray(body.prices)) {
+          applyPrices(body.prices);
+          setStatus("error");
+          setErrorMessage(
+            "Some prices changed while you were checking out. Please review your updated total below, then press Pay Now again."
+          );
+          return;
+        }
+      }
 
       if (response.status === 503) {
         setStatus("not_configured");
@@ -259,23 +276,40 @@ export function CheckoutForm({ prefill, returnWindowDays = siteConfig.business.r
       </div>
 
       <div className="border-t border-earth-brown/15 pt-6 lg:border-t-0 lg:border-l lg:pl-10 lg:pt-0">
+        <ul className="mb-4 divide-y divide-earth-brown/10 border-b border-earth-brown/15 pb-2">
+          {items.map((item) => (
+            <li key={item.productId} className="flex items-start justify-between gap-3 py-2 text-sm">
+              <div className="min-w-0">
+                <p className="text-charcoal">{item.name} <span className="text-earth-brown/70">× {item.quantity}</span></p>
+                <PriceTag size="compact" price={item.price} original={item.originalPrice} percentOff={item.percentOff} badge={item.offerLabel} />
+              </div>
+              <span className="shrink-0 text-earth-brown/90">{formatMoney(paiseToString((parsePaise(item.price) ?? 0) * item.quantity))}</span>
+            </li>
+          ))}
+        </ul>
         <div className="flex items-center justify-between text-sm text-earth-brown/80">
           <span>Subtotal</span>
-          <span>{formatPrice(String(subtotal))}</span>
+          <span>{formatMoney(String(subtotal))}</span>
         </div>
+        {savings > 0 && (
+          <div className="mt-2 flex items-center justify-between text-sm text-olive">
+            <span>You save</span>
+            <span>{formatMoney(String(savings))}</span>
+          </div>
+        )}
         <div className="mt-2 flex items-center justify-between text-sm text-earth-brown/80">
           <span>Shipping</span>
-          <span>{shipping === 0 ? "Free" : formatPrice(String(shipping))}</span>
+          <span>{shipping === 0 ? "Free" : formatMoney(String(shipping))}</span>
         </div>
         {shipping > 0 && (
           <p className="mt-2 text-xs text-earth-brown/70">
             Free shipping on orders over{" "}
-            {formatPrice(String(shippingConfig.freeShippingThresholdInRupees))}.
+            {formatMoney(String(shippingConfig.freeShippingThresholdInRupees))}.
           </p>
         )}
         <div className="mt-4 flex items-center justify-between border-t border-earth-brown/15 pt-4 text-base">
           <span className="text-charcoal">Total</span>
-          <span className="text-charcoal">{formatPrice(String(total))}</span>
+          <span className="text-charcoal">{formatMoney(String(total))}</span>
         </div>
         <div className="mt-6">
           <Button type="submit" disabled={status === "submitting"} className="w-full">

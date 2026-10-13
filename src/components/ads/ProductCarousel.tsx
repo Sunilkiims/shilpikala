@@ -7,7 +7,7 @@ import { AdPicture } from "@/components/ads/AdPicture";
 import { AdLink } from "@/components/ads/AdLink";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { Container } from "@/components/ui/Container";
-import { formatPrice } from "@/lib/utils/currency";
+import { formatMoney } from "@/lib/utils/currency";
 import type { CardProduct, RenderMedia } from "@/lib/ads/public";
 
 type Props = {
@@ -98,14 +98,21 @@ export function ProductCarousel({ heading, subtitle, badge, products, showDiscou
                     <span aria-hidden="true" className="absolute inset-0 bg-terracotta/[0.06]" />
                   )}
                   {showDiscount && p.discountPercent ? (
-                    <span className="absolute left-2 top-2 rounded-sm bg-terracotta px-2 py-0.5 text-xs text-ivory">{p.discountPercent}% off</span>
+                    <span className="absolute left-2 top-2 rounded-sm bg-olive px-2 py-0.5 text-xs font-semibold tracking-wide text-ivory">{p.discountPercent}% OFF</span>
                   ) : null}
                 </span>
                 <span className="mt-2 block text-sm leading-snug text-charcoal [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{p.name}</span>
                 <span className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm">
-                  <span className={p.onSale ? "text-terracotta" : "text-earth-brown/85"}>{formatPrice(p.price)}</span>
-                  {p.onSale && p.discountPercent ? <span className="text-xs text-earth-brown/65 line-through">{formatPrice(p.regularPrice)}</span> : null}
+                  <span className="sr-only">{p.originalPrice ? "Offer price " : "Price "}</span>
+                  <span className={p.originalPrice ? "font-semibold text-terracotta" : "text-earth-brown/85"}>{formatMoney(p.price)}</span>
+                  {p.originalPrice ? (
+                    <>
+                      <span className="sr-only">, original price </span>
+                      <span className="text-xs text-earth-brown/65 line-through">{formatMoney(p.originalPrice)}</span>
+                    </>
+                  ) : null}
                 </span>
+                {p.badge && <span className="mt-1 inline-block rounded-full bg-gold/30 px-2 py-0.5 text-[11px] text-earth-brown">{p.badge}</span>}
                 {!p.inStock && <span className="mt-0.5 block text-xs text-earth-brown/70">Out of stock</span>}
               </>
             );

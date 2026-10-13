@@ -8,7 +8,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { buildBreadcrumbSchema } from "@/lib/seo/structuredData";
 import { getAllCategories, getAllProducts } from "@/lib/catalog";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
 export const metadata: Metadata = buildMetadata({
   title: "Shop",

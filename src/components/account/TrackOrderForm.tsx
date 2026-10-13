@@ -1,5 +1,6 @@
 "use client";
 
+import { offerNote } from "@/lib/offers/orderNote";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils/currency";
@@ -12,7 +13,7 @@ type TrackedOrder = {
   itemsSubtotal: number;
   shipping: number;
   amount: number;
-  items: { productId: number; name: string; quantity: number; price: string }[];
+  items: { productId: number; name: string; quantity: number; price: string; originalPrice?: string; offerName?: string }[];
   address: {
     fullName: string;
     line1: string;
@@ -117,6 +118,7 @@ export function TrackOrderForm() {
             >
               <span className="text-charcoal">
                 {item.name} × {item.quantity}
+                {offerNote(item) && <span className="block text-xs text-olive">{offerNote(item)}</span>}
               </span>
               <span className="text-earth-brown/80">
                 {formatPrice(String(Number(item.price) * item.quantity))}

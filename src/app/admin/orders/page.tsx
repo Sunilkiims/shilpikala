@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { offerNote } from "@/lib/offers/orderNote";
 import { Container } from "@/components/ui/Container";
 import { formatPrice } from "@/lib/utils/currency";
 import { OrderFulfilmentForm } from "@/components/admin/OrderFulfilmentForm";
@@ -61,6 +62,7 @@ export default async function AdminOrdersPage() {
                   >
                     <span>
                       {item.name} × {item.quantity}
+                      {offerNote(item) && <span className="block text-xs text-olive">{offerNote(item)}</span>}
                     </span>
                     <span>
                       {formatPrice(String(Number(item.price) * item.quantity))}

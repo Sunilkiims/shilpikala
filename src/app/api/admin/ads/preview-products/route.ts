@@ -11,6 +11,6 @@ export async function POST(request: Request) {
   const ids = Array.isArray(b.productIds) ? b.productIds.filter((x): x is number => Number.isInteger(x)).slice(0, LIMITS.maxProducts) : [];
   const maxItems = Math.min(Math.max(Number(b.maxItems) || 12, 1), LIMITS.maxItems);
   const ref = Number.isInteger(b.sourceRef) ? (b.sourceRef as number) : undefined;
-  const products = await pickCarouselProducts({ sourceType, sourceRef: ref, productIds: ids, maxItems });
+  const products = await pickCarouselProducts({ sourceType, sourceRef: ref, productIds: ids, maxItems, discountedOnly: b.discountedOnly === true });
   return NextResponse.json({ products: products.map(toCard) });
 }

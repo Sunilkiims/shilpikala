@@ -2,6 +2,7 @@ import { cache } from "react";
 import { getAllCategories, getAllProducts } from "@/lib/catalog";
 import { getDb } from "@/lib/db";
 import { num } from "@/lib/db/rows";
+import { priceDisplay } from "@/lib/offers/display";
 import { parseExternalUrl, parseInternalRoute } from "@/lib/ads/destination";
 import { getCollection, getMediaInfo, listCollections, listLiveAds } from "@/lib/ads/store";
 import type { AdRecord, AdType, Collection, MediaInfo, Placement, SourceType } from "@/lib/ads/types";
@@ -11,8 +12,11 @@ export type RenderMedia = { src: string; width: number; height: number; animated
 
 export type CardProduct = {
   id: number; name: string; slug: string; price: string; regularPrice: string; onSale: boolean; inStock: boolean;
-  /** Only set when the product's real sale price is below its regular price. */
+  /** Struck-through price; set only when the product really is discounted (an offer or its own sale price). */
+  originalPrice?: string;
   discountPercent?: number;
+  /** Campaign badge, e.g. "Diwali Special". */
+  badge?: string;
   image?: { src: string; alt: string };
 };
 
@@ -26,14 +30,13 @@ export type RenderableAd = {
 type Ctx = { products: Product[]; categories: Category[]; collections: Collection[] };
 
 export const toCard = (p: Product): CardProduct => {
-  const sale = p.onSale && p.salePrice ? Number(p.salePrice) : undefined;
-  const regular = Number(p.regularPrice);
-  const discountPercent =
-    sale !== undefined && regular > 0 && sale < regular ? Math.round(((regular - sale) / regular) * 100) : undefined;
+  // `price` is what the customer pays: the offer price when an offer applies right now.
+  const d = priceDisplay(p);
   return {
-    id: p.id, name: p.name, slug: p.slug, price: p.price, regularPrice: p.regularPrice, onSale: Boolean(p.onSale && p.salePrice),
-    inStock: p.inStock && (p.stockQuantity === undefined || p.stockQuantity > 0),
-    ...(discountPercent ? { discountPercent } : {}),
+    id: p.id, name: p.name, slug: p.slug, price: d.price, regularPrice: p.regularPrice, onSale: Boolean(d.original), inStock: p.inStock && (p.stockQuantity === undefined || p.stockQuantity > 0),
+    ...(d.original ? { originalPrice: d.original } : {}),
+    ...(d.original && d.percentOff ? { discountPercent: d.percentOff } : {}),
+    ...(d.badge ? { badge: d.badge } : {}),
     ...(p.images[0] ? { image: { src: p.images[0].src, alt: p.images[0].alt || p.name } } : {}),
   };
 };
@@ -56,7 +59,7 @@ async function bestsellerIds(limit: number): Promise<number[]> {
   return res.rows.map((r) => num(r.pid));
 }
 
-export type CarouselConfig = { sourceType?: SourceType; sourceRef?: number; productIds: number[]; maxItems: number };
+export type CarouselConfig = { sourceType?: SourceType; sourceRef?: number; productIds: number[]; maxItems: number; discountedOnly?: boolean };
 
 /** The one place that decides which products a carousel shows; the storefront and the admin preview both use it. */
 export async function pickCarouselProducts(cfg: CarouselConfig, ctx?: Ctx): Promise<Product[]> {
@@ -74,12 +77,13 @@ export async function pickCarouselProducts(cfg: CarouselConfig, ctx?: Ctx): Prom
     }
     case "new_arrivals": list = [...c.products].sort((a, b) => b.id - a.id); break;
     case "on_sale": {
-      const off = (p: Product) => Number(p.regularPrice) - Number(p.salePrice);
-      list = c.products.filter((p) => p.onSale && p.salePrice && Number(p.salePrice) < Number(p.regularPrice)).sort((a, b) => off(b) / Number(b.regularPrice) - off(a) / Number(a.regularPrice));
+      // Anything with a real discount right now - an offer or the product's own sale price - biggest first.
+      list = c.products.filter((p) => priceDisplay(p).original).sort((a, b) => (priceDisplay(b).percentOff ?? 0) - (priceDisplay(a).percentOff ?? 0));
       break;
     }
-    case "bestsellers": list = inOrder(await bestsellerIds(cfg.maxItems * 2)); break;
+    case "bestsellers": list = inOrder(await bestsellerIds(cfg.maxItems * 3)); break;
   }
+  if (cfg.discountedOnly) list = list.filter((p) => Boolean(priceDisplay(p).original));
   return list.slice(0, cfg.maxItems);
 }
 
@@ -134,7 +138,7 @@ export async function toRenderable(ad: AdRecord, ctx: Ctx, mediaMap: Map<number,
   if (ad.type !== "carousel") return base.desktop ? base : undefined;
 
   const products = await pickCarouselProducts(
-    { sourceType: ad.sourceType, sourceRef: ad.sourceRef, productIds: ad.productIds, maxItems: ad.maxItems }, ctx
+    { sourceType: ad.sourceType, sourceRef: ad.sourceRef, productIds: ad.productIds, maxItems: ad.maxItems, discountedOnly: ad.discountedOnly }, ctx
   );
   if (products.length === 0) return undefined;
   return { ...base, products: products.map(toCard), viewAllHref: dest?.href };

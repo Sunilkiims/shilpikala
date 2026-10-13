@@ -4,6 +4,7 @@ import { AccountWishlist, type WishlistItemData } from "@/components/account/Acc
 import { listWishlistIds } from "@/lib/account/wishlistStore";
 import { getCurrentCustomer } from "@/lib/auth/session";
 import { getProductById } from "@/lib/catalog";
+import { priceDisplay } from "@/lib/offers/display";
 
 export const metadata: Metadata = { title: "My Wishlist", robots: { index: false, follow: false } };
 
@@ -19,9 +20,9 @@ export default async function AccountWishlistPage() {
     id: p.id,
     name: p.name,
     slug: p.slug,
-    price: p.onSale && p.salePrice ? p.salePrice : p.price,
-    regularPrice: p.regularPrice,
-    onSale: Boolean(p.onSale && p.salePrice),
+    price: priceDisplay(p).price,
+    ...(priceDisplay(p).original ? { originalPrice: priceDisplay(p).original, percentOff: priceDisplay(p).percentOff } : {}),
+    ...(priceDisplay(p).badge ? { badge: priceDisplay(p).badge } : {}),
     inStock: p.inStock && (p.stockQuantity === undefined || p.stockQuantity > 0),
     lowStock: p.inStock && p.stockQuantity !== undefined && p.stockQuantity > 0 && p.stockQuantity <= 3 ? p.stockQuantity : undefined,
     image: p.images[0] ? { src: p.images[0].src, alt: p.images[0].alt || p.name } : undefined,

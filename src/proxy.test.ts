@@ -128,6 +128,24 @@ describe("admin proxy — brute-force lockout", () => {
   });
 });
 
+describe("admin proxy — discounts & offers management is covered", () => {
+  beforeEach(() => load({ configured: true }));
+
+  const paths = ["/admin/offers", "/admin/offers/new", "/admin/offers/3", "/api/admin/offers", "/api/admin/offers/3", "/api/admin/offers/preview"];
+
+  it("refuses every offers page and API without credentials, and with wrong ones", () => {
+    paths.forEach((path, i) => {
+      const ip = `203.0.114.${100 + i}`;
+      expect(proxy(adminRequest({ path, ip })).status, path).toBe(401);
+      expect(proxy(adminRequest({ path, ip, auth: basicAuthHeader("admin", "nope") })).status, path).toBe(401);
+    });
+  });
+
+  it("lets the administrator through", () => {
+    for (const path of paths) expect(proxy(adminRequest({ path, auth: good })).status, path).toBe(200);
+  });
+});
+
 describe("admin proxy — advertisement management is covered", () => {
   beforeEach(() => load({ configured: true }));
 

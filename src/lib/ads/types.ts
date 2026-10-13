@@ -82,6 +82,8 @@ export type AdRecord = {
   productIds: number[];
   maxItems: number;
   showDiscount: boolean;
+  /** Carousel only: list just the products that currently have a discount. */
+  discountedOnly: boolean;
   startsAt?: string;
   endsAt?: string;
   priority: number;

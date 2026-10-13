@@ -246,6 +246,20 @@ Homepage order: hero slideshow → your existing brand hero → first carousel �
 
 **Database change**: migration `007_ads_promotions` adds `ad_media`, `ads`, `collections`, `ad_settings`. It only creates new tables; products, orders, users and payments are untouched. Migrations run automatically on start (`npm run dev` / first request in production). No manual command is needed.
 
+### 6.2 Discounts & Offers
+
+**Admin → Discounts & Offers** changes what customers actually pay. (Banners, GIFs and carousels stay under *Ads & Promotions*.) The dashboard counts active, scheduled, expired, draft and disabled offers and lists every offer with its discount, calculated price, dates and status.
+
+- **Product offers**: pick one or many products (bulk) and a percentage or a fixed rupee amount. **Category offers**: pick a category; it applies to every product in it, including ones added later. Both have a campaign name, an optional customer-facing badge ("Diwali Special"), optional start/end dates (IST in the admin) and an enable switch. The form shows a server-calculated preview (original → offer price, `% OFF`, a mock product card, how many products are eligible, and overlapping offers) before anything is published.
+- **Rules**: negative discounts, 100% or more, and any discount that would make a price zero or negative are rejected, validated against each product's *current* price. A fixed category discount simply skips products cheaper than the discount. The price an offer starts from is the product's current selling price (its own sale price if it has one).
+- **Precedence**: a product-specific offer beats a category offer. Offers do not stack, except a category offer whose **"also apply on top of a product-specific offer"** box is ticked. If two offers of the same kind overlap, the lower price wins (ties go to the newest).
+- **Scheduling**: an offer applies only when published, enabled and inside its dates; at the end time prices go back to normal on their own. Storefront pages re-render at least every 60 seconds (and immediately after any admin change); the cart, checkout and every API use the exact current time. An expired offer can't be re-enabled.
+- **Money**: all arithmetic is integer paise (percent stored as hundredths of a percent), rounded half-up to the paisa, never floating point. Prices with paise display as `₹1,199.20`; whole rupees as before (`₹1,499`).
+- **Storefront**: product cards, product page, shop/category/search results, featured products, wishlist and every carousel show the struck-through original price, the offer price, a `20% OFF` badge and the optional campaign badge. Products without a discount look exactly as before. In **Ads & Promotions → product carousel** a new "Show only discounted products" option builds deal carousels (heading, source, order, schedule, View all) that read offer prices from the database, so nothing is typed twice.
+- **Cart and checkout**: the cart re-asks the server for prices (`POST /api/cart/price`) when it loads and when an item is added; checkout re-prices everything on the server and never reads a price from the browser. If the total the customer saw no longer matches (an offer started or ended), `create-order` answers `409 prices_changed` with the new prices and nothing is charged until the customer confirms. Once the Razorpay order exists the price is locked: the order snapshot keeps the charged unit price, the original price, the discount per unit and the offer id/name, so history never changes if the offer or product is edited or deleted later. Free-shipping thresholds use the discounted subtotal. There is no coupon feature in this codebase, so there is nothing for offers to conflict with.
+- **Database**: migration `008_offers` adds `offers` and `offer_products` (plus `ads.discounted_only`). It only adds tables/a column, with no data changes, and runs automatically on first start.
+- Admin pages and `/api/admin/offers/**` sit behind the same HTTP Basic auth as the rest of the admin.
+
 ## 7. Deployment
 
 ### Option A — Node server / VPS / Docker
