@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrowseCard } from "@/components/browse/BrowseCard";
+import { MobileNav } from "@/components/header/MobileNav";
+import { siteConfig } from "@/lib/config/site";
 import { useWishlist } from "@/components/wishlist/WishlistProvider";
 import {
   ChevronLeftIcon,
@@ -142,6 +144,7 @@ export function MobileCategoryBrowser({
               </span>
             )}
           </Link>
+          <MobileNav links={siteConfig.headerNav} />
         </div>
         {searchOpen && (
           <form
