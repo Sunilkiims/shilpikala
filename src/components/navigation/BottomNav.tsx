@@ -39,11 +39,24 @@ export function BottomNav() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] tracking-wide transition-colors",
-                  active ? "text-terracotta" : "text-earth-brown/75 hover:text-terracotta"
+                  active ? "font-medium text-terracotta" : "text-earth-brown/75 hover:text-terracotta"
                 )}
               >
                 <span className="relative">
-                  <Icon className="h-6 w-6" />
+                  {active ? (
+                    <>
+                      <Icon className="h-6 w-6 opacity-0" />
+                      {/* Selected tab: a raised terracotta disc with a ring that cuts into the bar. */}
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-[calc(50%+16px)] items-center justify-center rounded-full bg-terracotta text-ivory shadow-[0_6px_14px_-4px_rgba(160,70,30,0.55)] ring-4 ring-ivory"
+                      >
+                        <Icon className="h-6 w-6" />
+                      </span>
+                    </>
+                  ) : (
+                    <Icon className="h-6 w-6" />
+                  )}
                   {label === "Cart" && totalQuantity > 0 && (
                     <span
                       aria-hidden="true"
