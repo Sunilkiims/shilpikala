@@ -6,6 +6,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { CategoryPageAds } from "@/components/ads/HomeAds";
+import { MobileCategoryBrowser } from "@/components/browse/MobileCategoryBrowser";
+import { loadBrowseData } from "@/lib/browse/load";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { buildBreadcrumbSchema } from "@/lib/seo/structuredData";
 import {
@@ -48,7 +50,10 @@ export default async function CategoryPage({ params }: PageProps) {
     notFound();
   }
 
-  const categoryProducts = await getProductsByCategorySlug(slug);
+  const [categoryProducts, browse] = await Promise.all([
+    getProductsByCategorySlug(slug),
+    loadBrowseData(slug),
+  ]);
   const breadcrumbItems = [
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
@@ -56,26 +61,40 @@ export default async function CategoryPage({ params }: PageProps) {
   ];
 
   return (
-    <Container className="py-12 sm:py-16">
-      <JsonLd data={buildBreadcrumbSchema(breadcrumbItems)} />
-      <Breadcrumbs items={breadcrumbItems} />
+    <>
+      <MobileCategoryBrowser
+        products={browse.products}
+        categories={browse.categories}
+        selected={slug}
+        title={category.name}
+        banner={<CategoryPageAds categoryId={category.id} position="top" />}
+      />
+      <div className="max-md:hidden">
+        <Container className="py-12 sm:py-16">
+          <JsonLd data={buildBreadcrumbSchema(breadcrumbItems)} />
+          <Breadcrumbs items={breadcrumbItems} />
 
-      <div className="mt-6">
-        <SectionHeading title={category.name} description={category.description} />
+          <div className="mt-6">
+            <SectionHeading
+              title={category.name}
+              description={category.description}
+            />
+          </div>
+
+          <div className="mt-8">
+            <CategoryPageAds categoryId={category.id} position="top" />
+          </div>
+
+          <div className="mt-10">
+            <ProductGrid
+              products={categoryProducts}
+              emptyMessage="Nothing in this category yet — check back soon."
+            />
+          </div>
+
+          <CategoryPageAds categoryId={category.id} position="bottom" />
+        </Container>
       </div>
-
-      <div className="mt-8">
-        <CategoryPageAds categoryId={category.id} position="top" />
-      </div>
-
-      <div className="mt-10">
-        <ProductGrid
-          products={categoryProducts}
-          emptyMessage="Nothing in this category yet — check back soon."
-        />
-      </div>
-
-      <CategoryPageAds categoryId={category.id} position="bottom" />
-    </Container>
+    </>
   );
 }

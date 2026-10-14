@@ -3,6 +3,7 @@ import "./globals.css";
 import { Header } from "@/components/header/Header";
 import { Footer } from "@/components/footer/Footer";
 import { FooterGate } from "@/components/footer/FooterGate";
+import { HeaderGate } from "@/components/header/HeaderGate";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { WishlistProvider } from "@/components/wishlist/WishlistProvider";
@@ -46,9 +47,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <JsonLd data={buildWebSiteSchema()} />
         <CartProvider>
           <WishlistProvider>
-            <Header />
+            <HeaderGate>
+              <Header />
+            </HeaderGate>
             <main className="flex-1">{children}</main>
-            <FooterGate><Footer /></FooterGate>
+            <FooterGate>
+              <Footer />
+            </FooterGate>
             <BottomNav />
           </WishlistProvider>
         </CartProvider>
