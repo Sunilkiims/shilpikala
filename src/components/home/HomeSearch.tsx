@@ -11,6 +11,8 @@ type Props = {
   products: BrowseProduct[];
   /** The normal home page, rendered on the server. Hidden (not unmounted) while a search is showing. */
   children: React.ReactNode;
+  /** Round category shortcuts, shown under the search bar (hidden while searching). */
+  strip?: React.ReactNode;
 };
 
 /**
@@ -18,7 +20,7 @@ type Props = {
  * customer is never sent to the shop. The query lives in the address bar (?q=), so it survives a
  * refresh and coming back from a product page, and clearing it restores the normal home page.
  */
-export function HomeSearch({ products, children }: Props) {
+export function HomeSearch({ products, children, strip }: Props) {
   const [query, setQuery] = useUrlParam("q");
   const inputRef = useRef<HTMLInputElement>(null);
   const searching = query.trim().length > 0;
@@ -34,50 +36,54 @@ export function HomeSearch({ products, children }: Props) {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-6xl px-6 pt-4 md:hidden">
-        <form
-          role="search"
-          onSubmit={(e) => {
-            e.preventDefault();
-            inputRef.current?.blur();
-          }}
-        >
-          <label className="flex min-h-12 items-center gap-3 rounded-full border border-earth-brown/20 bg-white/60 px-4 shadow-sm focus-within:border-terracotta focus-within:ring-2 focus-within:ring-terracotta/20">
-            <SearchIcon className="h-5 w-5 shrink-0 text-earth-brown" />
-            <span className="sr-only">Search products</span>
-            <input
-              ref={inputRef}
-              type="search"
-              inputMode="search"
-              enterKeyHint="search"
-              autoComplete="off"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search mandalas, lipan art, gifts and more"
-              className="min-w-0 flex-1 bg-transparent text-sm text-charcoal !outline-none placeholder:text-earth-brown/60 [&::-webkit-search-cancel-button]:hidden"
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={clear}
-                aria-label="Clear search"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-earth-brown hover:bg-earth-brown/10"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  aria-hidden="true"
+      {/* Phones: the search bar and category row stay pinned under the header while the page scrolls beneath. */}
+      <div className="sticky top-[calc(81px+env(safe-area-inset-top))] z-30 border-b border-earth-brown/10 bg-ivory pb-2 md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none">
+        <div className="mx-auto w-full max-w-6xl px-6 pt-4 md:hidden">
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              inputRef.current?.blur();
+            }}
+          >
+            <label className="flex min-h-12 items-center gap-3 rounded-full border border-earth-brown/20 bg-white/60 px-4 shadow-sm focus-within:border-terracotta focus-within:ring-2 focus-within:ring-terracotta/20">
+              <SearchIcon className="h-5 w-5 shrink-0 text-earth-brown" />
+              <span className="sr-only">Search products</span>
+              <input
+                ref={inputRef}
+                type="search"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search mandalas, lipan art, gifts and more"
+                className="min-w-0 flex-1 bg-transparent text-sm text-charcoal !outline-none placeholder:text-earth-brown/60 [&::-webkit-search-cancel-button]:hidden"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={clear}
+                  aria-label="Clear search"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-earth-brown hover:bg-earth-brown/10"
                 >
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            )}
-          </label>
-        </form>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              )}
+            </label>
+          </form>
+        </div>
+        {!searching && strip}
       </div>
 
       {searching && (

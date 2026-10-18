@@ -107,7 +107,7 @@ export function MobileCategoryBrowser({
 
   return (
     <div className="md:hidden">
-      <header className="sticky top-0 z-30 border-b border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/85">
+      <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] border-b border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/85">
         <div className="flex h-14 items-center gap-1 px-2">
           <button
             type="button"
@@ -198,7 +198,7 @@ export function MobileCategoryBrowser({
           <nav
             ref={sidebarRef}
             aria-label="Categories"
-            className="sticky top-14 max-h-[calc(100dvh-7.25rem-env(safe-area-inset-bottom))] w-[78px] shrink-0 overflow-y-auto overscroll-contain border-r border-earth-brown/10 bg-ivory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] max-h-[calc(100dvh-7.25rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-[78px] shrink-0 overflow-y-auto overscroll-contain border-r border-earth-brown/10 bg-ivory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <ul>
               <SidebarItem sel="all" label="All" active={selected === "all"}>

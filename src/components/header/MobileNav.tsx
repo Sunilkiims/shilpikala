@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { NavLink } from "@/lib/config/site";
 import { siteConfig } from "@/lib/config/site";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { useCart } from "@/components/cart/CartProvider";
 import { useWishlist } from "@/components/wishlist/WishlistProvider";
 import { AccountIcon, CartIcon, SearchIcon, WishlistIcon } from "@/components/ui/icons";
@@ -134,7 +135,13 @@ export function MobileNav({ links }: MobileNavProps) {
               className="absolute inset-y-0 right-0 flex w-[min(88vw,24rem)] flex-col bg-ivory shadow-2xl [animation:sk-drawer-in_.28s_cubic-bezier(.22,.8,.3,1)]"
             >
               <div className="flex h-16 shrink-0 items-center justify-between border-b border-earth-brown/15 pl-5 pr-3">
-                <span className="font-display text-xl text-charcoal">{siteConfig.name}</span>
+                <Link href="/" onClick={() => setOpen(false)} aria-label={`${siteConfig.name} home`} className="flex min-w-0 items-center gap-2.5">
+                  <BrandMark className="h-9 w-9 shrink-0 text-terracotta" />
+                  <span className="flex min-w-0 flex-col leading-none">
+                    <span className="font-display text-2xl tracking-wide text-charcoal">{siteConfig.name}</span>
+                    <span className="mt-1 text-[10px] uppercase tracking-[0.22em] text-earth-brown/70">{siteConfig.tagline}</span>
+                  </span>
+                </Link>
                 <button
                   type="button"
                   onClick={close}

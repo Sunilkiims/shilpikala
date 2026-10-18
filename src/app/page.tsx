@@ -21,11 +21,10 @@ export const revalidate = 60;
 export default async function Home() {
   const searchable = (await getAllProducts()).map(toBrowseProduct);
   return (
-    <HomeSearch products={searchable}>
+    <HomeSearch products={searchable} strip={<CategoryStrip />}>
       <h1 className="sr-only">
         ShilpiKala — handmade Mandala Art and Lipan Art
       </h1>
-      <CategoryStrip />
       <HeroAds />
       <OfferStrip />
       <HomeCarousels part="first" />

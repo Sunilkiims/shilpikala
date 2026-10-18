@@ -7,7 +7,8 @@ import { isBrowsePath } from "@/lib/browse/routes";
 export function HeaderGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className={isBrowsePath(pathname) ? "max-md:hidden" : undefined}>
+    // `contents` keeps the wrapper out of the layout, so the sticky <Header> sticks against the whole page.
+    <div className={isBrowsePath(pathname) ? "max-md:hidden md:contents" : "contents"}>
       {children}
     </div>
   );

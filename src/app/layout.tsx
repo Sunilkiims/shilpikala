@@ -14,16 +14,31 @@ import {
 } from "@/lib/seo/structuredData";
 import { siteConfig } from "@/lib/config/site";
 
+// Edge-to-edge on phones: the page draws behind the status bar (time, signal, battery stay visible on top),
+// and the header pads itself by the safe-area inset. Browsers without a notch report an inset of 0.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f7f2e8",
+};
+
 export const metadata: Metadata = {
+  applicationName: siteConfig.name,
+  appleWebApp: { capable: true, title: siteConfig.name, statusBarStyle: "default" },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
   metadataBase: new URL(siteConfig.url),
   title: {
     default: `${siteConfig.name} — ${siteConfig.tagline}`,
     template: `%s — ${siteConfig.name}`,
   },
   description: siteConfig.description,
-  applicationName: siteConfig.name,
-  appleWebApp: { capable: true, title: siteConfig.name, statusBarStyle: "default" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
   robots: {
     index: true,
     follow: true,
@@ -40,11 +55,6 @@ export const metadata: Metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
   },
-};
-
-// Colours the Android status bar / browser toolbar to match the brand.
-export const viewport: Viewport = {
-  themeColor: "#a65335",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

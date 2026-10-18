@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/config/site";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { MobileNav } from "@/components/header/MobileNav";
 import { CartIndicator } from "@/components/cart/CartIndicator";
 import { WishlistIndicator } from "@/components/wishlist/WishlistIndicator";
@@ -7,12 +8,13 @@ import { AccountIcon, SearchIcon } from "@/components/ui/icons";
 
 export function Header() {
   return (
-    <header className="relative z-40 border-b border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/80">
+    <header className="sticky top-0 z-40 pt-[env(safe-area-inset-top)] border-b md:relative border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/80">
       <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-6 sm:px-8">
         <Link
           href="/"
-          className="shrink-0 font-display text-2xl tracking-wide text-charcoal"
+          className="flex shrink-0 items-center gap-2 font-display text-2xl tracking-wide text-charcoal"
         >
+          <BrandMark className="h-8 w-8 text-terracotta" />
           {siteConfig.name}
         </Link>
 
