@@ -39,7 +39,7 @@ export function HomeSearch({ products, children, strip }: Props) {
     <>
       {/* Phones: the search bar and category row stay pinned under the header while the page scrolls beneath. */}
       <div className="sticky top-[calc(81px+env(safe-area-inset-top))] z-30 border-b border-earth-brown/10 bg-ivory pb-2 md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none">
-        <FestiveBackdrop toran={false} phoneOnly />
+        <FestiveBackdrop lights={false} phoneOnly />
         <div className="mx-auto w-full max-w-6xl px-6 pt-4 md:hidden">
           <form
             role="search"

@@ -25,6 +25,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   applicationName: siteConfig.name,
+  other: { "mobile-web-app-capable": "yes" },
   appleWebApp: { capable: true, title: siteConfig.name, statusBarStyle: "default" },
   icons: {
     icon: [

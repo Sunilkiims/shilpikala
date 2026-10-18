@@ -1,6 +1,7 @@
 import { siteConfig } from "@/lib/config/site";
 
-const PENNANTS = ["#e0a526", "#a65335", "#4e5638", "#c8372d"];
+/** Warm fairy-light colours: gold, amber, soft terracotta, cream. */
+const BULBS = ["#e8b84a", "#f0a63c", "#d98a5f", "#f6dca0"];
 
 /** [left %, top %, size px, delay s, duration s] */
 const SPARKLES: [number, number, number, number, number][] = [
@@ -16,18 +17,18 @@ const SPARKLES: [number, number, number, number, number][] = [
 ];
 
 /**
- * Festive decoration drawn BEHIND the content it is placed in: a swaying toran (string of pennants)
- * along the top edge and softly twinkling gold sparkles, over a warm marigold glow. Pure CSS/SVG,
+ * Festive decoration drawn BEHIND the content it is placed in: a thin string of softly twinkling fairy lights
+ * along the top edge and a few gold sparkles, over a warm marigold glow. Pure CSS/SVG,
  * ignores taps, hidden from screen readers, and frozen automatically for people who prefer reduced
  * motion. Switch it off with `festive: false` in src/lib/config/site.ts.
  *
  * The parent must be `relative`/`sticky` and create its own stacking context (e.g. have a z-index).
  */
 export function FestiveBackdrop({
-  toran = true,
+  lights = true,
   phoneOnly = false,
 }: {
-  toran?: boolean;
+  lights?: boolean;
   phoneOnly?: boolean;
 }) {
   if (!siteConfig.festive) return null;
@@ -58,21 +59,26 @@ export function FestiveBackdrop({
         </svg>
       ))}
 
-      {toran && (
+      {lights && (
         <div className="absolute inset-x-0 top-[env(safe-area-inset-top)]">
-          <div className="h-px w-full bg-terracotta/40" />
-          <div className="flex justify-between px-1">
-            {Array.from({ length: 18 }, (_, i) => (
-              <svg
-                key={i}
-                viewBox="0 0 20 24"
-                className="sk-sway h-3.5 w-3 shrink-0 origin-top sm:h-4 sm:w-3.5"
-                style={{ animationDelay: `${(i % 6) * 0.35}s` }}
-              >
-                <path d="M0 0h20L10 24z" fill={PENNANTS[i % PENNANTS.length]} />
-                <circle cx="10" cy="7" r="2" fill="#f7f2e8" fillOpacity=".75" />
-              </svg>
-            ))}
+          {/* A thin wire with small glowing bulbs hanging at alternating heights. */}
+          <div className="h-px w-full bg-earth-brown/20" />
+          <div className="flex justify-between px-2">
+            {Array.from({ length: 16 }, (_, i) => {
+              const color = BULBS[i % BULBS.length];
+              return (
+                <span
+                  key={i}
+                  className="sk-bulb block h-1.5 w-1.5 rounded-full"
+                  style={{
+                    backgroundColor: color,
+                    boxShadow: `0 0 6px 2px ${color}99`,
+                    marginTop: i % 2 === 0 ? 2 : 6,
+                    animationDelay: `${(i % 7) * 0.4}s`,
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
       )}
