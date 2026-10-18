@@ -254,6 +254,25 @@ export function MobileNav({ links }: MobileNavProps) {
                     </li>
                   </ul>
                 </nav>
+
+                {/* Policies: the page footer is hidden on phones, so these live here. */}
+                <nav aria-label="Help and policies" className="mt-4">
+                  <p className="px-3 text-[11px] font-medium uppercase tracking-[0.18em] text-earth-brown/60">Help &amp; policies</p>
+                  <ul className="mt-1">
+                    {[
+                      { label: "Shipping", href: "/shipping" },
+                      { label: "Returns & Refunds", href: "/return-refund-policy" },
+                      ...siteConfig.legalNav,
+                    ].map((link) => (
+                      <li key={link.href}>
+                        <Link href={link.href} onClick={() => setOpen(false)} className={itemClass}>
+                          {link.label}
+                          <span aria-hidden="true" className="text-earth-brown/40">›</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
               </div>
 
               <div className="shrink-0 border-t border-earth-brown/15 px-4 py-3">
