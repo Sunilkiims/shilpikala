@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same palette as src/app/globals.css on the website. -->
+<resources>
+    <color name="brand_ivory">#F7F2E8</color>
+    <color name="brand_terracotta">#A65335</color>
+    <color name="brand_terracotta_deep">#7D3927</color>
+    <color name="brand_charcoal">#24211E</color>
+    <color name="ic_launcher_background">#A65335</color>
+</resources>

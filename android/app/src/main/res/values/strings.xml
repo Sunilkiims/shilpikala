@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ShilpiKala</string>
+    <string name="provider_authority">com.shilpikala.app.fileprovider</string>
+
+    <!-- Must name the same site as launch_url (set in app/build.gradle.kts). -->
+    <string name="asset_statements" translatable="false">
+        [{
+            \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+            \"target\": {
+                \"namespace\": \"web\",
+                \"site\": \"https://www.shilpikala.com\"
+            }
+        }]
+    </string>
+
+    <string name="shortcut_shop">Shop</string>
+    <string name="shortcut_offers">Offers</string>
+    <string name="shortcut_orders">My orders</string>
+</resources>

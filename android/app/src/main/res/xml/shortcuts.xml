@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutId="shop"
+        android:shortcutShortLabel="@string/shortcut_shop">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://www.shilpikala.com/shop"
+            android:targetClass="com.shilpikala.app.LauncherActivity"
+            android:targetPackage="com.shilpikala.app" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutId="offers"
+        android:shortcutShortLabel="@string/shortcut_offers">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://www.shilpikala.com/offers"
+            android:targetClass="com.shilpikala.app.LauncherActivity"
+            android:targetPackage="com.shilpikala.app" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutId="orders"
+        android:shortcutShortLabel="@string/shortcut_orders">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://www.shilpikala.com/account/orders"
+            android:targetClass="com.shilpikala.app.LauncherActivity"
+            android:targetPackage="com.shilpikala.app" />
+    </shortcut>
+</shortcuts>

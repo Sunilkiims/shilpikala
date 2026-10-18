@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Header } from "@/components/header/Header";
 import { Footer } from "@/components/footer/Footer";
@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     template: `%s — ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  applicationName: siteConfig.name,
+  appleWebApp: { capable: true, title: siteConfig.name, statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
   robots: {
     index: true,
     follow: true,
@@ -37,6 +40,11 @@ export const metadata: Metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
   },
+};
+
+// Colours the Android status bar / browser toolbar to match the brand.
+export const viewport: Viewport = {
+  themeColor: "#a65335",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -58,6 +58,8 @@ All are documented in [`.env.example`](./.env.example). **Never commit real valu
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Yes | Protects `/admin` and `/api/admin` (HTTP Basic). If either is empty the admin stays locked. Use a long random password. |
 | `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `INVOICE_EMAIL_FROM`, `ACCOUNT_EMAIL_FROM` | For email | Order, shipping, verification and reset emails. Without them the site works but sends nothing. |
 | `ADMIN_NOTIFICATION_EMAIL` | No | Receives new-order and new-inquiry alerts. |
+| `ANDROID_SHA256_CERT_FINGERPRINTS` | For the Android app | Comma-separated SHA-256 signing fingerprints served at `/.well-known/assetlinks.json` so the app opens full screen. See [`android/README.md`](./android/README.md). |
+| `ANDROID_PACKAGE_NAME` | No | Android package name (default `com.shilpikala.app`). |
 
 ## 3. Database
 
