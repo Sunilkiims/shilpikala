@@ -38,7 +38,7 @@ export function HomeSearch({ products, children, strip }: Props) {
   return (
     <>
       {/* Phones: the search bar and category row stay pinned under the header while the page scrolls beneath. */}
-      <div className="sticky top-[calc(81px+env(safe-area-inset-top))] z-30 border-b border-earth-brown/10 bg-ivory pb-2 md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none">
+      <div className="sticky top-[calc(81px+env(safe-area-inset-top))] z-30 border-b border-[#e9a812]/20 bg-ivory max-md:bg-gradient-to-b max-md:from-[#fde08f] max-md:to-[#fff7e1] pb-2 md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none">
         <FestiveBackdrop lights={false} phoneOnly />
         <div className="mx-auto w-full max-w-6xl px-6 pt-4 md:hidden">
           <form

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { CategoryGlyph } from "@/components/browse/CategoryGlyph";
 import Link from "next/link";
 import { getAllCategories, getAllProducts } from "@/lib/catalog";
 
@@ -19,7 +19,6 @@ export async function CategoryStrip() {
       return {
         ...c,
         count: inCat.length,
-        image: inCat.find((p) => p.images[0])?.images[0],
       };
     })
     .filter((c) => c.count > 0);
@@ -34,7 +33,7 @@ export async function CategoryStrip() {
               href="/shop"
               className="flex flex-col items-center gap-1.5 text-center text-xs text-charcoal"
             >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-terracotta text-ivory">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#e9a812] text-white shadow-sm">
                 <svg
                   viewBox="0 0 24 24"
                   className="h-6 w-6"
@@ -58,16 +57,12 @@ export async function CategoryStrip() {
                 href={`/categories/${c.slug}`}
                 className="flex flex-col items-center gap-1.5 text-center text-xs leading-tight text-charcoal"
               >
-                <span className="relative block h-14 w-14 overflow-hidden rounded-full bg-earth-brown/10 ring-1 ring-earth-brown/15">
-                  {c.image && (
-                    <Image
-                      src={c.image.src}
-                      alt=""
-                      fill
-                      sizes="56px"
-                      className="object-cover"
-                    />
-                  )}
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#fdeab8]/80 text-[#4a2c17] ring-1 ring-[#e9a812]/25">
+                  <CategoryGlyph
+                    slug={c.slug}
+                    name={c.name}
+                    className="h-8 w-8"
+                  />
                 </span>
                 <span className="line-clamp-2">{c.name}</span>
               </Link>

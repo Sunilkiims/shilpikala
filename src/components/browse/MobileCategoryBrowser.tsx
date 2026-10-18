@@ -107,7 +107,7 @@ export function MobileCategoryBrowser({
 
   return (
     <div className="md:hidden">
-      <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] border-b border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/85">
+      <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] border-b border-earth-brown/15 bg-gradient-to-b from-[#fdbb42] to-[#fde08f]">
         <div className="flex h-14 items-center gap-1 px-2">
           <button
             type="button"

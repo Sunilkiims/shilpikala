@@ -9,7 +9,7 @@ import { AccountIcon, SearchIcon } from "@/components/ui/icons";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 pt-[env(safe-area-inset-top)] border-b md:relative border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/80">
+    <header className="sticky top-0 z-40 pt-[env(safe-area-inset-top)] border-b md:relative border-earth-brown/15 bg-ivory/95 backdrop-blur supports-[backdrop-filter]:bg-ivory/80 max-md:!border-transparent max-md:bg-gradient-to-b max-md:from-[#fdbb42] max-md:to-[#fde08f]">
       <FestiveBackdrop phoneOnly />
       <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-6 sm:px-8">
         <Link
