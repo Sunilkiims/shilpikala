@@ -11,6 +11,8 @@ export type SocialLink = {
 export const siteConfig = {
   name: "ShilpiKala",
   tagline: "Art • Soul • Craft",
+  /** Festive decoration (toran, twinkling sparkles) behind the header. Set to false to switch it off. */
+  festive: true,
   description:
     "ShilpiKala celebrates Mandala Art, Lipan Art, handmade creations and traditional Indian artistry — where tradition meets contemporary artistry.",
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",

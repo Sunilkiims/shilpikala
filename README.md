@@ -58,8 +58,6 @@ All are documented in [`.env.example`](./.env.example). **Never commit real valu
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Yes | Protects `/admin` and `/api/admin` (HTTP Basic). If either is empty the admin stays locked. Use a long random password. |
 | `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `INVOICE_EMAIL_FROM`, `ACCOUNT_EMAIL_FROM` | For email | Order, shipping, verification and reset emails. Without them the site works but sends nothing. |
 | `ADMIN_NOTIFICATION_EMAIL` | No | Receives new-order and new-inquiry alerts. |
-| `ANDROID_SHA256_CERT_FINGERPRINTS` | For the Android app | Comma-separated SHA-256 signing fingerprints served at `/.well-known/assetlinks.json` so the app opens full screen. See [`android/README.md`](./android/README.md). |
-| `ANDROID_PACKAGE_NAME` | No | Android package name (default `com.shilpikala.app`). |
 
 ## 3. Database
 
@@ -321,3 +319,22 @@ scripts/          db-migrate, import-legacy
 * Public forms are rate-limited; the contact forms have a honeypot field.
 * Admin-entered blog text is rendered as text (no HTML), and JSON-LD escapes `<`.
 * Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`. A strict Content-Security-Policy is not set, because Razorpay's checkout loads third-party scripts and frames; add one once you've tested it against your flow.
+
+## Database data transfer (Neon and similar hosts)
+
+Product photos and ad banners are stored in PostgreSQL, so every time one is read out of the
+database it counts toward the host's data-transfer allowance (Neon's free plan: 5 GB per project
+per month; past that, the database is suspended until the next cycle or an upgrade).
+
+- New product photos are resized to at most 1600px and stored as WebP (typically 100 to 300 KB
+  instead of 3 to 5 MB). Animated GIFs are stored as uploaded.
+- `/media/...` files are cached forever in the browser and in Vercel's CDN, and a browser that
+  already has a file gets a 304 without any database read.
+- Photos uploaded before this change keep their original size. To shrink them, delete and re-upload
+  them in the admin, or move images to object storage (for example Vercel Blob or Cloudflare R2).
+- Keep ad GIFs small (a few hundred KB). Check usage in the Neon console under Billing / Usage.
+
+## Hosting on a Hostinger VPS
+
+A complete, scripted setup (Node.js, PostgreSQL, nginx, HTTPS, pm2, nightly backups) is in
+`deploy/hostinger/`. Start with `deploy/hostinger/DEPLOY-HOSTINGER.md`.

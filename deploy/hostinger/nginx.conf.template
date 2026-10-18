@@ -1,0 +1,31 @@
+# nginx site for ShilpiKala. setup-server.sh fills in ${DOMAIN}; certbot then adds the HTTPS parts.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN} www.${DOMAIN};
+
+    # Return-request photos and videos are uploaded through the app (RETURN_VIDEO_MAX_MB in .env.production).
+    client_max_body_size 30m;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # The app rate-limits by the first address in X-Forwarded-For, so it must be OVERWRITTEN here with
+        # the real client address. Appending would let visitors spoof it and dodge the limits.
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # Built JS/CSS never changes for a given file name.
+    location /_next/static/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+}

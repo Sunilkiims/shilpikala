@@ -1,6 +1,7 @@
 import { refreshAfter } from "@/lib/cache/revalidate";
 import { NextResponse } from "next/server";
 import { addProductImage, getProductById } from "@/lib/store/catalogStore";
+import { optimizeProductPhoto } from "@/lib/media/optimize";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -8,7 +9,12 @@ type RouteParams = {
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB
 
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
 async function postHandler(request: Request, { params }: RouteParams) {
   const { id } = await params;
@@ -37,7 +43,7 @@ async function postHandler(request: Request, { params }: RouteParams) {
   if (!ALLOWED_TYPES.has(file.type)) {
     return NextResponse.json(
       { error: "unsupported_file_type" },
-      { status: 415 }
+      { status: 415 },
     );
   }
 
@@ -49,10 +55,13 @@ async function postHandler(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "file_too_large" }, { status: 413 });
   }
 
+  // Store a web-sized copy: the original can be 5 MB, and every read of it from the database
+  // counts against the host's data-transfer allowance.
+  const photo = await optimizeProductPhoto(buffer, file.type);
   const updated = await addProductImage(productId, {
     alt: product.name,
-    mime: file.type,
-    data: buffer,
+    mime: photo.mime,
+    data: photo.data,
   });
   if (!updated) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });

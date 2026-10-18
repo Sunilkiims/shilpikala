@@ -2,6 +2,7 @@
 
 import { useMemo, useRef } from "react";
 import { CompactCard } from "@/components/product/CompactCard";
+import { FestiveBackdrop } from "@/components/brand/FestiveBackdrop";
 import { SearchIcon } from "@/components/ui/icons";
 import { matchProducts } from "@/lib/browse/search";
 import type { BrowseProduct } from "@/lib/browse/types";
@@ -38,6 +39,7 @@ export function HomeSearch({ products, children, strip }: Props) {
     <>
       {/* Phones: the search bar and category row stay pinned under the header while the page scrolls beneath. */}
       <div className="sticky top-[calc(81px+env(safe-area-inset-top))] z-30 border-b border-earth-brown/10 bg-ivory pb-2 md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none">
+        <FestiveBackdrop toran={false} phoneOnly />
         <div className="mx-auto w-full max-w-6xl px-6 pt-4 md:hidden">
           <form
             role="search"

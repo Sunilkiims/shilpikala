@@ -6,6 +6,7 @@ import {
 } from "@/lib/db/client";
 import { migrations } from "@/lib/db/migrations";
 import { seedCatalogueOnce } from "@/lib/db/seed";
+import { explainDatabaseFailure } from "@/lib/db/diagnose";
 
 type State = { key: string; kind: "postgres" | "pglite"; ready: Promise<Db> };
 
@@ -24,14 +25,23 @@ async function migrate(db: Db): Promise<void> {
     // Serialises concurrent boots (multiple serverless instances).
     await tx.query("SELECT pg_advisory_xact_lock(727274)");
     await tx.exec(
-      "CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())"
+      "CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())",
     );
-    const done = await tx.query<{ id: string }>("SELECT id FROM schema_migrations");
+    const done = await tx.query<{ id: string }>(
+      "SELECT id FROM schema_migrations",
+    );
     const applied = new Set(done.rows.map((r) => r.id));
     for (const migration of migrations) {
       if (applied.has(migration.id)) continue;
-      await tx.exec(migration.sql);
-      await tx.query("INSERT INTO schema_migrations (id) VALUES ($1)", [migration.id]);
+      try {
+        await tx.exec(migration.sql);
+      } catch (error) {
+        // Remember which migration failed so the start-up error can name it.
+        throw Object.assign(error as Error, { migrationId: migration.id });
+      }
+      await tx.query("INSERT INTO schema_migrations (id) VALUES ($1)", [
+        migration.id,
+      ]);
     }
     await seedCatalogueOnce(tx);
   });
@@ -49,7 +59,9 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
     } catch (error) {
       const message = (error as Error).message ?? "";
       const transient =
-        /Connection terminated|ECONNRESET|ECONNREFUSED|ETIMEDOUT|timeout|the database system is starting up/i.test(message);
+        /Connection terminated|ECONNRESET|ECONNREFUSED|ETIMEDOUT|timeout|the database system is starting up/i.test(
+          message,
+        );
       if (!transient || i >= attempts) throw error;
       await new Promise((r) => setTimeout(r, 500 * 2 ** (i - 1)));
     }
@@ -69,14 +81,18 @@ async function boot(): Promise<{ kind: State["kind"]; db: Db }> {
   ) {
     throw new Error(
       "DATABASE_URL is not set. Set it to your PostgreSQL connection string " +
-        "(or set ALLOW_EMBEDDED_DB=true to knowingly use the local embedded database)."
+        "(or set ALLOW_EMBEDDED_DB=true to knowingly use the local embedded database).",
     );
   }
-  const db = url
-    ? await createPgDriver(url)
-    : await createPgliteDriver(resolvePgliteDataDir());
-  await withRetry(() => migrate(db));
-  return { kind: url ? "postgres" : "pglite", db };
+  try {
+    const db = url
+      ? await createPgDriver(url)
+      : await createPgliteDriver(resolvePgliteDataDir());
+    await withRetry(() => migrate(db));
+    return { kind: url ? "postgres" : "pglite", db };
+  } catch (error) {
+    throw explainDatabaseFailure(error, url);
+  }
 }
 
 function ensure(): State {

@@ -3,10 +3,13 @@ import { isolateStorageDir } from "@/test-support/tempStorageDir";
 import { routeParams } from "@/test-support/request";
 
 let cleanup: () => void;
-let upload: (request: Request, ctx: ReturnType<typeof routeParams>) => Promise<Response>;
+let upload: (
+  request: Request,
+  ctx: ReturnType<typeof routeParams>,
+) => Promise<Response>;
 let removeImage: (
   request: Request,
-  ctx: ReturnType<typeof routeParams<{ id: string; imageId: string }>>
+  ctx: ReturnType<typeof routeParams<{ id: string; imageId: string }>>,
 ) => Promise<Response>;
 let catalog: typeof import("@/lib/store/catalogStore");
 let productId: number;
@@ -14,7 +17,7 @@ let productId: number;
 // Smallest valid 1x1 PNG.
 const PNG_BYTES = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-  "base64"
+  "base64",
 );
 
 function uploadRequest(id: string | number, file?: File) {
@@ -39,10 +42,10 @@ async function storedImageCount(): Promise<number> {
 beforeEach(async () => {
   cleanup = isolateStorageDir();
   catalog = await import("@/lib/store/catalogStore");
-  ({ POST: upload } = await import("@/app/api/admin/products/[id]/images/route"));
-  ({ DELETE: removeImage } = await import(
-    "@/app/api/admin/products/[id]/images/[imageId]/route"
-  ));
+  ({ POST: upload } =
+    await import("@/app/api/admin/products/[id]/images/route"));
+  ({ DELETE: removeImage } =
+    await import("@/app/api/admin/products/[id]/images/[imageId]/route"));
 
   const product = await catalog.createProduct({
     name: "Image Route Product",
@@ -62,7 +65,7 @@ describe("POST /api/admin/products/[id]/images", () => {
   it("stores the image in the database and records it on the product", async () => {
     const response = await upload(
       uploadRequest(productId, pngFile()),
-      routeParams({ id: String(productId) })
+      routeParams({ id: String(productId) }),
     );
 
     expect(response.status).toBe(201);
@@ -75,7 +78,7 @@ describe("POST /api/admin/products/[id]/images", () => {
   it("never stores or exposes the client's filename (no path traversal)", async () => {
     const response = await upload(
       uploadRequest(productId, pngFile("../../../etc/passwd.png")),
-      routeParams({ id: String(productId) })
+      routeParams({ id: String(productId) }),
     );
 
     const { product } = await response.json();
@@ -84,19 +87,29 @@ describe("POST /api/admin/products/[id]/images", () => {
   });
 
   it("gives each uploaded image a distinct id", async () => {
-    await upload(uploadRequest(productId, pngFile()), routeParams({ id: String(productId) }));
+    await upload(
+      uploadRequest(productId, pngFile()),
+      routeParams({ id: String(productId) }),
+    );
     const second = await upload(
       uploadRequest(productId, pngFile()),
-      routeParams({ id: String(productId) })
+      routeParams({ id: String(productId) }),
     );
 
-    const ids = (await second.json()).product.images.map((i: { id: number }) => i.id);
+    const ids = (await second.json()).product.images.map(
+      (i: { id: number }) => i.id,
+    );
     expect(new Set(ids).size).toBe(2);
   });
 
   it("rejects an unsupported file type with 415 and writes nothing", async () => {
-    const file = new File(["not an image"], "notes.txt", { type: "text/plain" });
-    const response = await upload(uploadRequest(productId, file), routeParams({ id: String(productId) }));
+    const file = new File(["not an image"], "notes.txt", {
+      type: "text/plain",
+    });
+    const response = await upload(
+      uploadRequest(productId, file),
+      routeParams({ id: String(productId) }),
+    );
 
     expect(response.status).toBe(415);
     expect(await response.json()).toEqual({ error: "unsupported_file_type" });
@@ -104,8 +117,13 @@ describe("POST /api/admin/products/[id]/images", () => {
   });
 
   it("rejects a file over 5MB with 413 and writes nothing", async () => {
-    const big = new File([Buffer.alloc(5 * 1024 * 1024 + 1, 1)], "big.png", { type: "image/png" });
-    const response = await upload(uploadRequest(productId, big), routeParams({ id: String(productId) }));
+    const big = new File([Buffer.alloc(5 * 1024 * 1024 + 1, 1)], "big.png", {
+      type: "image/png",
+    });
+    const response = await upload(
+      uploadRequest(productId, big),
+      routeParams({ id: String(productId) }),
+    );
 
     expect(response.status).toBe(413);
     expect(await storedImageCount()).toBe(0);
@@ -113,24 +131,36 @@ describe("POST /api/admin/products/[id]/images", () => {
 
   it("rejects an empty file", async () => {
     const empty = new File([], "empty.png", { type: "image/png" });
-    const response = await upload(uploadRequest(productId, empty), routeParams({ id: String(productId) }));
+    const response = await upload(
+      uploadRequest(productId, empty),
+      routeParams({ id: String(productId) }),
+    );
     expect(response.status).toBe(400);
   });
 
   it("rejects a request with no file", async () => {
-    const response = await upload(uploadRequest(productId), routeParams({ id: String(productId) }));
+    const response = await upload(
+      uploadRequest(productId),
+      routeParams({ id: String(productId) }),
+    );
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "missing_file" });
   });
 
   it("returns 404 for an unknown product, writing nothing", async () => {
-    const response = await upload(uploadRequest(999999, pngFile()), routeParams({ id: "999999" }));
+    const response = await upload(
+      uploadRequest(999999, pngFile()),
+      routeParams({ id: "999999" }),
+    );
     expect(response.status).toBe(404);
     expect(await storedImageCount()).toBe(0);
   });
 
   it("returns 400 for a non-numeric product id", async () => {
-    const response = await upload(uploadRequest("abc", pngFile()), routeParams({ id: "abc" }));
+    const response = await upload(
+      uploadRequest("abc", pngFile()),
+      routeParams({ id: "abc" }),
+    );
     expect(response.status).toBe(400);
   });
 });
@@ -139,9 +169,12 @@ describe("DELETE /api/admin/products/[id]/images/[imageId]", () => {
   async function uploadOne() {
     const response = await upload(
       uploadRequest(productId, pngFile()),
-      routeParams({ id: String(productId) })
+      routeParams({ id: String(productId) }),
     );
-    return (await response.json()).product.images[0] as { id: number; src: string };
+    return (await response.json()).product.images[0] as {
+      id: number;
+      src: string;
+    };
   }
 
   it("removes the image and its stored bytes", async () => {
@@ -150,7 +183,7 @@ describe("DELETE /api/admin/products/[id]/images/[imageId]", () => {
 
     const response = await removeImage(
       new Request("http://localhost/x", { method: "DELETE" }),
-      routeParams({ id: String(productId), imageId: String(image.id) })
+      routeParams({ id: String(productId), imageId: String(image.id) }),
     );
 
     expect(response.status).toBe(200);
@@ -161,7 +194,7 @@ describe("DELETE /api/admin/products/[id]/images/[imageId]", () => {
   it("returns 404 for an unknown image id", async () => {
     const response = await removeImage(
       new Request("http://localhost/x", { method: "DELETE" }),
-      routeParams({ id: String(productId), imageId: "999" })
+      routeParams({ id: String(productId), imageId: "999" }),
     );
     expect(response.status).toBe(404);
   });
@@ -180,10 +213,43 @@ describe("DELETE /api/admin/products/[id]/images/[imageId]", () => {
 
     const response = await removeImage(
       new Request("http://localhost/x", { method: "DELETE" }),
-      routeParams({ id: String(other.id), imageId: String(image.id) })
+      routeParams({ id: String(other.id), imageId: String(image.id) }),
     );
 
     expect(response.status).toBe(404);
     expect(await storedImageCount()).toBe(1);
   });
+});
+
+describe("uploaded photos are stored web-sized", () => {
+  it("stores a large photo as a much smaller WebP", async () => {
+    const sharp = (await import("sharp")).default;
+    const raw = Buffer.alloc(2800 * 2000 * 3);
+    for (let i = 0; i < raw.length; i++) raw[i] = (i * 2654435761) >>> 24;
+    const big = await sharp(raw, {
+      raw: { width: 2800, height: 2000, channels: 3 },
+    })
+      .jpeg({ quality: 95 })
+      .toBuffer();
+    expect(big.length).toBeLessThan(5 * 1024 * 1024);
+
+    const res = await upload(
+      uploadRequest(
+        productId,
+        new File([new Uint8Array(big)], "big.jpg", { type: "image/jpeg" }),
+      ),
+      routeParams({ id: String(productId) }),
+    );
+    expect(res.status).toBe(201);
+    const { getDb } = await import("@/lib/db");
+    const row = (
+      await (
+        await getDb()
+      ).query<{ mime: string; n: number }>(
+        "SELECT mime, octet_length(data) AS n FROM product_images ORDER BY id DESC LIMIT 1",
+      )
+    ).rows[0];
+    expect(row.mime).toBe("image/webp");
+    expect(Number(row.n)).toBeLessThan(big.length / 2);
+  }, 30000);
 });

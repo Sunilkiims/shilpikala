@@ -109,3 +109,20 @@ h4 {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Festive backdrop (see FestiveBackdrop). Reduced-motion users get the still version via the rule above. */
+@keyframes sk-sway {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+@keyframes sk-twinkle {
+  0%, 100% { opacity: 0.12; transform: scale(0.55) rotate(0deg); }
+  50% { opacity: 0.85; transform: scale(1) rotate(25deg); }
+}
+@keyframes sk-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.sk-sway { animation: sk-sway 3.4s ease-in-out infinite; }
+.sk-twinkle { animation: sk-twinkle 2.8s ease-in-out infinite; }
+.sk-glow { animation: sk-glow 4.5s ease-in-out infinite; }
